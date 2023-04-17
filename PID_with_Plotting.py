@@ -5,9 +5,9 @@ import pandas as pd
 import PySimpleGUI as sg
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+from scipy.ndimage import uniform_filter1d
 import sympy
 plt.rcParams['figure.dpi'] = 600
-
 
 
 def get_sniff_data(h5_file, trial_name):
@@ -84,6 +84,7 @@ def get_fit(x, y):
     print('Parameters:', fitted)
     print('RMSE:', RMSE)
     print('R-squared:', Rsquared)
+    print(f'Formula: y = {fitted[0]} * x^{fitted[1]} + {fitted[2]}')
 
     return fitted[0], fitted[1], fitted[2]
 
@@ -184,9 +185,12 @@ def main():
         rising_curve_x = x_values[3050:3500]
         rising_curve_y = y_values[3050:3500]
 
+
         normalize_val = np.mean(y_values[2800:2900])
 
         rising_curve_y = rising_curve_y/normalize_val
+
+        rising_curve_y = uniform_filter1d(rising_curve_y, size=25)
 
         a, b, c = get_fit(rising_curve_x, rising_curve_y)
 
@@ -195,7 +199,8 @@ def main():
         y_fitted = func(x_fitted, a, b, c)
 
         #you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
-
+        # Integrate from 2s -> 0.1% of max
+        
         #slopes = get_derivatives_log(x_fitted, y_fitted)
 
         #slopes = a * np.power((x_fitted * b), (b-1))
@@ -217,7 +222,7 @@ def main():
 
     h5_file.close()
 
-    ax1.set_ylim([-500, max(y_vals) + (max(y_vals) * 0.05)])
+    ax1.set_ylim([0, max(y_vals) + (max(y_vals) * 0.05)])
     ax1.set_xlim([min(x_vals), max(x_vals)])
 
     x_ticks = np.arange(round(min(x_vals)), round(max(x_vals)) + 1)
@@ -229,7 +234,7 @@ def main():
     ax1.axvline(x=2, color='r')
     ax1.axvline(x=0, color='r')
 
-    #fig.show()
+    fig.show()
 
     save_csv(file_name_stem, data)
 

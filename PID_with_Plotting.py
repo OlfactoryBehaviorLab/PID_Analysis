@@ -4,7 +4,10 @@ import numpy as np
 import pandas as pd
 import PySimpleGUI as sg
 import matplotlib.pyplot as plt
+
 plt.rcParams['figure.dpi'] = 600
+
+
 def get_sniff_data(h5_file, trial_name):
     event_data = h5_file[trial_name + '/Events']
     sniff_data = h5_file[trial_name + '/sniff']
@@ -38,7 +41,7 @@ def condense_packets(sniff_data, sniff_samples, packet_sent_time):
         packet_size = sniff_samples[packet]
         end_time = packet_sent_time[packet]
         sniff_data_array.extend(current_packet)
-        time_stamp_addition = np.arange((end_time - packet_size + 1), end_time+1)
+        time_stamp_addition = np.arange((end_time - packet_size + 1), end_time + 1)
         time_stamp_array.extend(time_stamp_addition)
 
     return np.array(sniff_data_array), np.array(time_stamp_array)
@@ -48,13 +51,18 @@ def get_roi(TOI_start, TOI_end, time_stamp_array):
     roi_index = np.where(np.logical_and(TOI_start < time_stamp_array, time_stamp_array < TOI_end))[0]
     return roi_index
 
+
 def get_file():
     filename = sg.popup_get_file("Select H5 File...", file_types=(("H5 Files", "*.h5"), ("All Files", "*.*")))
     return filename
 
-def plot_trace():
 
-    return None
+def save_csv(file_name_stem, data):
+    column_labels = ['OdorConcentration', 'PIDPump', 'PIDGain', 'PeakPIDResponse', ' AveragePIDResponse', 'odorVial',
+                     'Carrier_flowrate', 'Diluter_flowrate', 'PIDSpace', 'OdorName']
+    output = pd.DataFrame(data, columns=column_labels)
+    output.to_csv(f'.\\{file_name_stem}.csv', index=False)
+
 
 def main():
     file_path = get_file()
@@ -63,6 +71,9 @@ def main():
 
     num_sec_before_fv = 0.5
     num_sec_after_fv = 1.5
+
+    plot_sec_before_fv = 1
+    plot_sec_after_fv = 6
 
     data = []
 
@@ -85,10 +96,10 @@ def main():
     y_vals = []
     x_vals = []
 
-
     for i in range(num_type_2_trials):
         trial_number = type_2_trials[i]
         trial_name = trial_names[trial_number]
+
         event_data, sniff_data = get_sniff_data(h5_file, trial_name)
 
         sniff_samples = event_data['sniff_samples']
@@ -102,9 +113,6 @@ def main():
         TOI_start = final_valve_on_time[i] - num_sec_before_fv * 1000
         TOI_end = final_valve_on_time[i] + num_sec_after_fv * 1000
 
-        plot_sec_before_fv = 1
-        plot_sec_after_fv = 4
-
         TOI_start_plot = final_valve_on_time[i] - plot_sec_before_fv * 1000
         TOI_end_plot = final_valve_on_time[i] + plot_sec_after_fv * 1000
 
@@ -115,8 +123,6 @@ def main():
         baseline = np.mean(sniff_data_array[100:end_baseline])
         sniff_data_array = sniff_data_array - baseline
 
-        # plot_roi_index = np.where(np.logical_and(time_stamp_array_plot > TOI_start_plot,
-        # time_stamp_array_plot < TOI_end_plot))[0]
         plot_roi_index = get_roi(TOI_start_plot, TOI_end_plot, time_stamp_array_plot)
         sniff_data_array_plot = sniff_data_array_plot[plot_roi_index]
         time_stamp_array_plot = time_stamp_array_plot[plot_roi_index]
@@ -127,17 +133,15 @@ def main():
         peak_PID_response = np.max(sniff_data_array)
         average_range_start = final_valve_on_time[i] + 500
         average_range_end = final_valve_on_time[i] + 1500
-        # average_ROI = np.where(np.logical_and(time_stamp_array > average_range_start,
-        # time_stamp_array < average_range_end))[0]
         average_ROI = get_roi(average_range_start, average_range_end, time_stamp_array)
         average_PID_response = np.mean(sniff_data_array[average_ROI])
 
-        x_values = (time_stamp_array_plot - final_valve_on_time[i])/1000
+        x_values = (time_stamp_array_plot - final_valve_on_time[i]) / 1000
         x_vals.append(max(x_values))
         x_vals.append(min(x_values))
 
-        y_values = sniff_data_array_plot/pid_gain[i]
-        y_values = y_values/(carrier_flowrate[i]/900)
+        y_values = sniff_data_array_plot / pid_gain[i]
+        y_values = y_values / (carrier_flowrate[i] / 900)
         y_values = y_values * 4.8828
         y_vals.append(max(y_values))
 
@@ -148,21 +152,23 @@ def main():
 
         data.append(row_data)
 
-    column_labels = ['OdorConcentration', 'PIDPump', 'PIDGain', 'PeakPIDResponse', ' AveragePIDResponse', 'odorVial',
-                     'Carrier_flowrate', 'Diluter_flowrate', 'PIDSpace', 'OdorName']
+    h5_file.close()
 
     ax1.set_ylim([-500, max(y_vals) + (max(y_vals) * 0.05)])
     ax1.set_xlim([min(x_vals), max(x_vals)])
-    plt.axvline(x=0.5)
-    plt.axvline(x=1.5)
+
+    x_ticks = np.arange(round(min(x_vals)), round(max(x_vals)) + 1)
+
+    plt.xticks(x_ticks)
+
+    plt.axvline(x=0.5, color='k')
+    plt.axvline(x=1.5, color='k')
+    plt.axvline(x=2, color='r')
+    plt.axvline(x=0, color='r')
 
     plt.show()
 
-    output = pd.DataFrame(data, columns=column_labels)
-
-    h5_file.close()
-
-    output.to_csv(f'.\\{file_name_stem}.csv', index=False)
+    save_csv(file_name_stem, data)
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import PySimpleGUI as sg
 import matplotlib.pyplot as plt
+import contamination_auc
 from scipy.optimize import curve_fit
 from scipy.ndimage import uniform_filter1d
 import sympy
@@ -56,7 +57,8 @@ def get_roi(TOI_start, TOI_end, time_stamp_array):
 
 def get_file():
     filename = sg.popup_get_file("Select H5 File...", file_types=(("H5 Files", "*.h5"), ("All Files", "*.*")))
-    return filename
+    file_stem = os.path.basename(filename)
+    return filename, file_stem
 
 
 def save_csv(file_name_stem, data):
@@ -65,45 +67,45 @@ def save_csv(file_name_stem, data):
     output = pd.DataFrame(data, columns=column_labels)
     output.to_csv(f'.\\{file_name_stem}.csv', index=False)
 
-def func(x, a, b, c):
-    return a * np.power(x, -b) + c
-
-def get_fit(x, y):
-
-    fitted, pcov = curve_fit(func, x, y, maxfev=100000)
-
-    modelPredictions = func(x, *fitted)
-
-    absError = modelPredictions - y
-
-    SE = np.square(absError)  # squared errors
-    MSE = np.mean(SE)  # mean squared errors
-    RMSE = np.sqrt(MSE)  # Root Mean Squared Error, RMSE
-    Rsquared = 1.0 - (np.var(absError) / np.var(y))
-
-    print('Parameters:', fitted)
-    print('RMSE:', RMSE)
-    print('R-squared:', Rsquared)
-    print(f'Formula: y = {fitted[0]} * x^{fitted[1]} + {fitted[2]}')
-
-    return fitted[0], fitted[1], fitted[2]
-
-def get_derivatives_log(x, y):
-    logx = np.log(x)
-    logy = np.log(y)
-
-    #function = sympy.Function('y = a * x^-b + c')
-
-    derivs = np.gradient(logy)/np.gradient(logx)
-    #derivs = sympy.diff(function, x)
-
-    return derivs
+# def func(x, a, b, c):
+#     return a * np.power(x, -b) + c
+#
+# def get_fit(x, y):
+#
+#     fitted, pcov = curve_fit(func, x, y, maxfev=100000)
+#
+#     modelPredictions = func(x, *fitted)
+#
+#     absError = modelPredictions - y
+#
+#     SE = np.square(absError)  # squared errors
+#     MSE = np.mean(SE)  # mean squared errors
+#     RMSE = np.sqrt(MSE)  # Root Mean Squared Error, RMSE
+#     Rsquared = 1.0 - (np.var(absError) / np.var(y))
+#
+#     print('Parameters:', fitted)
+#     print('RMSE:', RMSE)
+#     print('R-squared:', Rsquared)
+#     print(f'Formula: y = {fitted[0]} * x^{fitted[1]} + {fitted[2]}')
+#
+#     return fitted[0], fitted[1], fitted[2]
+#
+# def get_derivatives_log(x, y):
+#     logx = np.log(x)
+#     logy = np.log(y)
+#
+#     #function = sympy.Function('y = a * x^-b + c')
+#
+#     derivs = np.gradient(logy)/np.gradient(logx)
+#     #derivs = sympy.diff(function, x)
+#
+#     return derivs
 
 def main():
 
-    #file_path = get_file()
-    file_path = '.\\ContaminationH5s\\odorOctylamine_sess1_D2023_2_10T12_24_38.h5'
-    file_name_stem = os.path.basename(file_path)[:-3]
+    file_path, file_name_stem = get_file()
+    #file_path = '.\\ContaminationH5s\\odorOctylamine_sess1_D2023_2_10T12_24_38.h5'
+    #file_name_stem = os.path.basename(file_path)[:-3]
     h5_file = open_h5_file(file_path)
 
     num_sec_before_fv = 0.5
@@ -133,7 +135,7 @@ def main():
     y_vals = []
     x_vals = []
 
-    for i in [20]:
+    for i in range(num_type_2_trials):
         trial_number = type_2_trials[i]
         trial_name = trial_names[trial_number]
 
@@ -182,36 +184,8 @@ def main():
         y_values = y_values * 4.8828
         y_vals.append(max(y_values))
 
-        rising_curve_x = x_values[3050:3500]
-        rising_curve_y = y_values[3050:3500]
-
-
-        normalize_val = np.mean(y_values[2800:2900])
-
-        rising_curve_y = rising_curve_y/normalize_val
-
-        rising_curve_y = uniform_filter1d(rising_curve_y, size=25)
-
-        a, b, c = get_fit(rising_curve_x, rising_curve_y)
-
-        x_fitted = np.linspace(np.min(rising_curve_x), np.max(rising_curve_x), len(rising_curve_y))
-        #y_fitted = a * np.log((rising_curve_x)- c) + b
-        y_fitted = func(x_fitted, a, b, c)
-
         #you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
         # Integrate from 2s -> 0.1% of max
-        
-        #slopes = get_derivatives_log(x_fitted, y_fitted)
-
-        #slopes = a * np.power((x_fitted * b), (b-1))
-        #print(slopes)
-        #cutoff = np.where(np.abs(slopes) == np.min(np.absolute(slopes)))[0]
-        #print(f'Cutoff: {cutoff}')
-
-        fig2, ax2 = plt.subplots()
-        ax2.plot(rising_curve_x,  rising_curve_y)
-        ax2.plot(x_fitted, y_fitted)
-        fig2.show()
 
         ax1.plot(x_values, y_values, linewidth=0.5)
 

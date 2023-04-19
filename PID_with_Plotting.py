@@ -10,8 +10,8 @@ plt.rcParams['figure.dpi'] = 600
 
 def get_sniff_data(h5_file, trial_name):
     event_data = h5_file[trial_name + '/Events']
-    sniff_data = h5_file[trial_name + '/sniff']
-    sniff_data = [each for each in sniff_data]
+    sniff_data = h5_file[trial_name + '/sniff'][:]
+    #sniff_data = [each for each in sniff_data]
 
     return event_data, sniff_data
 
@@ -28,23 +28,16 @@ def open_h5_file(path: str):
 
 def decode_list(items):
     decoded = [item.decode('utf-8') for item in items]
-    return decoded
+    return np.array(decoded)
 
 
 def condense_packets(sniff_data, sniff_samples, packet_sent_time):
-    sniff_data_array = []
-    time_stamp_array = []
+    first_time_point = packet_sent_time[0] - sniff_samples[0] + 1
+    end_time_point = packet_sent_time[-1] + 1
+    time_stamp_array = np.arange(first_time_point, end_time_point)
+    sniff_data_array = np.concatenate(sniff_data).ravel()
 
-    num_packets = len(sniff_data)
-    for packet in range(num_packets):
-        current_packet = sniff_data[packet]
-        packet_size = sniff_samples[packet]
-        end_time = packet_sent_time[packet]
-        sniff_data_array.extend(current_packet)
-        time_stamp_addition = np.arange((end_time - packet_size + 1), end_time + 1)
-        time_stamp_array.extend(time_stamp_addition)
-
-    return np.array(sniff_data_array), np.array(time_stamp_array)
+    return sniff_data_array, time_stamp_array
 
 
 def get_roi(TOI_start, TOI_end, time_stamp_array):

@@ -1,13 +1,10 @@
-import h5py
-import os
-import numpy as np
-import pandas as pd
 import PySimpleGUI as sg
+import h5py
 import matplotlib.pyplot as plt
-import contamination_auc
-from scipy.optimize import curve_fit
-from scipy.ndimage import uniform_filter1d
-import sympy
+import numpy as np
+import os
+import pandas as pd
+
 plt.rcParams['figure.dpi'] = 600
 
 
@@ -67,45 +64,10 @@ def save_csv(file_name_stem, data):
     output = pd.DataFrame(data, columns=column_labels)
     output.to_csv(f'.\\{file_name_stem}.csv', index=False)
 
-# def func(x, a, b, c):
-#     return a * np.power(x, -b) + c
-#
-# def get_fit(x, y):
-#
-#     fitted, pcov = curve_fit(func, x, y, maxfev=100000)
-#
-#     modelPredictions = func(x, *fitted)
-#
-#     absError = modelPredictions - y
-#
-#     SE = np.square(absError)  # squared errors
-#     MSE = np.mean(SE)  # mean squared errors
-#     RMSE = np.sqrt(MSE)  # Root Mean Squared Error, RMSE
-#     Rsquared = 1.0 - (np.var(absError) / np.var(y))
-#
-#     print('Parameters:', fitted)
-#     print('RMSE:', RMSE)
-#     print('R-squared:', Rsquared)
-#     print(f'Formula: y = {fitted[0]} * x^{fitted[1]} + {fitted[2]}')
-#
-#     return fitted[0], fitted[1], fitted[2]
-#
-# def get_derivatives_log(x, y):
-#     logx = np.log(x)
-#     logy = np.log(y)
-#
-#     #function = sympy.Function('y = a * x^-b + c')
-#
-#     derivs = np.gradient(logy)/np.gradient(logx)
-#     #derivs = sympy.diff(function, x)
-#
-#     return derivs
 
 def main():
 
     file_path, file_name_stem = get_file()
-    #file_path = '.\\ContaminationH5s\\odorOctylamine_sess1_D2023_2_10T12_24_38.h5'
-    #file_name_stem = os.path.basename(file_path)[:-3]
     h5_file = open_h5_file(file_path)
 
     num_sec_before_fv = 0.5
@@ -184,8 +146,7 @@ def main():
         y_values = y_values * 4.8828
         y_vals.append(max(y_values))
 
-        #you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
-        # Integrate from 2s -> 0.1% of max
+        # you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
 
         ax1.plot(x_values, y_values, linewidth=0.5)
 

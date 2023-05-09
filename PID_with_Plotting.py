@@ -1,54 +1,10 @@
-import PySimpleGUI as sg
 import h5py
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import pandas as pd
+import DewanPID_Utils
 
 plt.rcParams['figure.dpi'] = 600
-
-
-def get_sniff_data(h5_file, trial_name):
-    event_data = h5_file[trial_name + '/Events']
-    sniff_data = h5_file[trial_name + '/sniff'][:]
-    #sniff_data = [each for each in sniff_data]
-
-    return event_data, sniff_data
-
-
-def open_h5_file(path: str):
-    try:
-        h5_file = h5py.File(path, 'r')
-    except OSError or FileNotFoundError:
-        sg.popup_error("Unable to open file. Quitting!")
-        quit()
-    else:
-        return h5_file
-
-
-def decode_list(items):
-    decoded = [item.decode('utf-8') for item in items]
-    return np.array(decoded)
-
-
-def condense_packets(sniff_data, sniff_samples, packet_sent_time):
-    first_time_point = packet_sent_time[0] - sniff_samples[0] + 1
-    end_time_point = packet_sent_time[-1] + 1
-    time_stamp_array = np.arange(first_time_point, end_time_point)
-    sniff_data_array = np.concatenate(sniff_data).ravel()
-
-    return sniff_data_array, time_stamp_array
-
-
-def get_roi(TOI_start, TOI_end, time_stamp_array):
-    roi_index = np.where(np.logical_and(TOI_start < time_stamp_array, time_stamp_array < TOI_end))[0]
-    return roi_index
-
-
-def get_file():
-    filename = sg.popup_get_file("Select H5 File...", file_types=(("H5 Files", "*.h5"), ("All Files", "*.*")))
-    file_stem = os.path.basename(filename)
-    return filename, file_stem
 
 
 def save_csv(file_name_stem, data):
@@ -60,8 +16,8 @@ def save_csv(file_name_stem, data):
 
 def main():
 
-    file_path, file_name_stem = get_file()
-    h5_file = open_h5_file(file_path)
+    file_path, file_name_stem = DewanPID_Utils.get_file()
+    h5_file = DewanPID_Utils.open_h5_file(file_path)
 
     num_sec_before_fv = 0.5
     num_sec_after_fv = 1.5
@@ -78,13 +34,13 @@ def main():
 
     final_valve_on_time = trials['fvOnTime'][type_2_trials]
     odor_concentration = trials['odorconc'][type_2_trials]
-    pid_pump = decode_list(trials['PIDPump'][type_2_trials])
+    pid_pump = DewanPID_Utils.decode_list(trials['PIDPump'][type_2_trials])
     pid_spacer = trials['PIDSpace'][type_2_trials]
     pid_gain = trials['PIDGain'][type_2_trials]
     odor_vial = trials['odorvial'][type_2_trials]
     carrier_flowrate = trials['Carrier_flowrate'][type_2_trials]
     dilutor_flowrate = trials['Dilutor_flowrate'][type_2_trials]
-    odor_name = decode_list(trials['odor'][type_2_trials])
+    odor_name = DewanPID_Utils.decode_list(trials['odor'][type_2_trials])
 
     fig, ax1 = plt.subplots()
     y_vals = []
@@ -94,12 +50,12 @@ def main():
         trial_number = type_2_trials[i]
         trial_name = trial_names[trial_number]
 
-        event_data, sniff_data = get_sniff_data(h5_file, trial_name)
+        event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
 
         sniff_samples = event_data['sniff_samples']
         packet_sent_time = event_data['packet_sent_time']
 
-        sniff_data_array, time_stamp_array = condense_packets(sniff_data, sniff_samples, packet_sent_time)
+        sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data, sniff_samples, packet_sent_time)
 
         time_stamp_array_plot = np.copy(time_stamp_array)
         sniff_data_array_plot = np.copy(sniff_data_array)
@@ -110,14 +66,14 @@ def main():
         TOI_start_plot = final_valve_on_time[i] - plot_sec_before_fv * 1000
         TOI_end_plot = final_valve_on_time[i] + plot_sec_after_fv * 1000
 
-        roi_index = get_roi(TOI_start, TOI_end, time_stamp_array)
+        roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
         sniff_data_array = sniff_data_array[roi_index]
         time_stamp_array = time_stamp_array[roi_index]
         end_baseline = int(num_sec_before_fv * 1000 - 100)
         baseline = np.mean(sniff_data_array[100:end_baseline])
         sniff_data_array = sniff_data_array - baseline
 
-        plot_roi_index = get_roi(TOI_start_plot, TOI_end_plot, time_stamp_array_plot)
+        plot_roi_index = DewanPID_Utils.get_roi(TOI_start_plot, TOI_end_plot, time_stamp_array_plot)
         sniff_data_array_plot = sniff_data_array_plot[plot_roi_index]
         time_stamp_array_plot = time_stamp_array_plot[plot_roi_index]
         base_ROI_plot = np.where(time_stamp_array_plot < (final_valve_on_time[i] - 50))[0]
@@ -127,7 +83,7 @@ def main():
         peak_PID_response = np.max(sniff_data_array)
         average_range_start = final_valve_on_time[i] + 500
         average_range_end = final_valve_on_time[i] + 1500
-        average_ROI = get_roi(average_range_start, average_range_end, time_stamp_array)
+        average_ROI = DewanPID_Utils.get_roi(average_range_start, average_range_end, time_stamp_array)
         average_PID_response = np.mean(sniff_data_array[average_ROI])
 
         x_values = (time_stamp_array_plot - final_valve_on_time[i]) / 1000

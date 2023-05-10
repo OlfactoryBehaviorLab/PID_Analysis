@@ -37,8 +37,8 @@ def condense_packets(sniff_data, sniff_samples, packet_sent_time):
     return sniff_data_array, time_stamp_array
 
 
-def get_roi(TOI_start: int, TOI_end: int, time_stamp_array):
-    roi_index = np.where(np.logical_and(TOI_start < time_stamp_array, time_stamp_array < TOI_end))[0]
+def get_roi(ROI_Start: int, ROI_End: int, data_array):
+    roi_index = np.where(np.logical_and(data_array > ROI_Start, data_array < ROI_End))[0]
     return roi_index
 
 

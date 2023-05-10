@@ -42,8 +42,11 @@ def get_roi(ROI_Start: int, ROI_End: int, data_array):
     return roi_index
 
 
-def get_file() -> (str, str):
-    filename = sg.popup_get_file("Select H5 File...", file_types=(("H5 Files", "*.h5"), ("All Files", "*.*")))
+def get_file(path=None) -> (str, str):
+    if path is None:
+        filename = sg.popup_get_file("Select H5 File...", file_types=(("H5 Files", "*.h5"), ("All Files", "*.*")))
+    else:
+        filename = path
     file_stem = os.path.basename(filename)
     file_folder = os.path.dirname(filename)
     return filename, file_stem, file_folder

@@ -58,9 +58,21 @@ def find_lower_bound(time_stamps):
     return lower_bound
 
 
-def save_data(data, file_path, file_stem, fig):
-    column_labels = ['Odor Name', 'Odor Concentration', 'Tube Length', 'Dilutor', 'Carrier', 'Passivation',
-                     'Depassivation']
+def generate_header(cutoff_percentages):
+    column_labels = ['Odor Name', 'Odor Concentration', 'Tube Length', 'Dilutor', 'Carrier', 'Passivation AUC',
+                     'Passivation Time']
+
+    for each in cutoff_percentages:
+        auc_label = f'Depassivation AUC ({each})'
+        time_delay_label = f'Depassivation Time ({each})'
+        column_labels.append(auc_label)
+        column_labels.append(time_delay_label)
+
+    return column_labels
+
+def save_data(data, file_path, file_stem, fig, cutoff_percentages):
+    column_labels = generate_header(cutoff_percentages)
+
     output = pd.DataFrame(data, columns=column_labels)
 
     csv_path = os.path.join(file_path, f'{file_stem}-CONTAMINATION.csv')
@@ -84,29 +96,26 @@ def get_non_odor_trials(odor_names):
 
 def get_troughs(normalized_data):
     troughs = signal.argrelextrema(normalized_data[1000:1300], np.less_equal, order=5)[0]
-    good_indexes = DewanPID_Utils.get_roi(10, 150, troughs)
+    good_indexes = DewanPID_Utils.get_roi(10, 300, troughs)
     # Sometimes it erroneously makes the trough too early,
     # This makes sure it is always in the middle of the
-    # passivation Time
+    # passivation Time; sometimes the curves are very stretched, hence checking out to 300
     troughs = troughs[good_indexes]
+    # Even if we get two adjacent numbers, they're close enough to just take the first/last
     t1 = troughs[0] + 1000
     t2 = troughs[-1] + 1000
     return t1, t2
 
 
-def spline_extrapolation(normalized_data):
+def linear_extrapolation(normalized_data):
     t1, t2 = get_troughs(normalized_data)
-
     x_vals = np.arange(0, len(normalized_data))
-    new_xvals = np.arange(t1, t2)
+    num_nums = t2-t1
+    new_y = np.linspace(normalized_data[t1], normalized_data[t2], num=num_nums)
+    new_normalized = np.copy(normalized_data)
+    new_normalized[t1:t2] = new_y
 
-    function = interpolate.UnivariateSpline(x_vals, normalized_data, k=1)
-    new_y = function(new_xvals)
-
-    # new_normalized = np.copy(normalized_data)
-    normalized_data[t1:t2] = new_y
-
-    return normalized_data, t1
+    return new_normalized, t1
 
 
 def get_passivation_rate(time_stamp_array, troughless_data, pass_off_time, passivation_start):
@@ -115,26 +124,39 @@ def get_passivation_rate(time_stamp_array, troughless_data, pass_off_time, passi
     x_vals = time_stamp_array[roi]
     y_vals = troughless_data[roi]
     passivation_auc = get_auc(x_vals, y_vals)
+    passivation_time_delay = np.sum(np.diff(time_stamp_array[roi]))
+    return passivation_auc, passivation_time_delay
 
     return passivation_auc
 
-
-def get_depassivation_rate(time_stamp_array, troughless_data, pass_off_time):
+def get_depassivation_rate(time_stamp_array, troughless_data, pass_off_time, cutoff_percentages):
     off_index = np.where(time_stamp_array == pass_off_time)[0]
     max_value = troughless_data[off_index]
-    cutoff_value = max_value * 0.95
+    cutoff_values = np.multiply(max_value, np.divide(cutoff_percentages, 100))
 
-    roi = DewanPID_Utils.get_roi(cutoff_value, max_value, troughless_data)
+    auc_vals = []
+    time_diffs = []
 
-    x_vals = time_stamp_array[roi]
-    y_vals = troughless_data[roi]
+    for each in cutoff_values:
+        roi = DewanPID_Utils.get_roi(each, max_value, troughless_data)
+        time_diff = roi[-1] - off_index
+        x_vals = time_stamp_array[roi]
+        y_vals = troughless_data[roi]
 
-    depassivation_auc = get_auc(x_vals, y_vals)
+        auc_vals.append(get_auc(x_vals, y_vals))
+        time_diffs.append(time_diff[0])
 
-    return depassivation_auc
+    return auc_vals, time_diffs
 
 
 def main():
+    max_tube_length = 200
+    min_concentration = 1
+    sec_before = 1
+    sec_after = 10
+    cutoff_percentages = [5, 10, 25, 50, 75, 95]
+
+
     file_path, file_stem, file_folder = DewanPID_Utils.get_file()
     h5_file = DewanPID_Utils.open_h5_file(file_path)
 
@@ -153,17 +175,19 @@ def main():
     type_6_trials = np.array(type_6_trials)[odor_indexes]
 
     odor_concentration = trials['odorconc'][type_6_trials]
-    good_trials = np.where(odor_concentration > 3.5)[0]
+    good_concentrations = np.where(odor_concentration > min_concentration)[0]
+    odor_concentration = odor_concentration[good_concentrations]
+    odor_name = odor_name[odor_indexes][good_concentrations]
+    final_valve_on_time = trials['fvOnTime'][type_6_trials][good_concentrations]
+    pid_gain = trials['PIDGain'][type_6_trials][good_concentrations]
+    carrier_flowrate = trials['Carrier_flowrate'][type_6_trials][good_concentrations]
+    diluter_flowrate = trials['Dilutor_flowrate'][type_6_trials][good_concentrations]
+    pass_valve_off_time = trials['PassOffTime'][type_6_trials][good_concentrations]
+    tube_length = trials['Tube'][type_6_trials][good_concentrations]
 
-    num_type_6_trials = len(good_trials)
-    odor_concentration = odor_concentration[good_trials]
-    odor_name = odor_name[odor_indexes][good_trials]
-    final_valve_on_time = trials['fvOnTime'][type_6_trials][good_trials]
-    pid_gain = trials['PIDGain'][type_6_trials][good_trials]
-    carrier_flowrate = trials['Carrier_flowrate'][type_6_trials][good_trials]
-    diluter_flowrate = trials['Dilutor_flowrate'][type_6_trials][good_trials]
-    pass_valve_off_time = trials['PassOffTime'][type_6_trials][good_trials]
-    tube_length = trials['Tube'][type_6_trials][good_trials]
+    good_tubes = np.where(tube_length < max_tube_length)[0]
+    type_6_trials = type_6_trials[good_tubes]
+    num_type_6_trials = len(good_tubes)
 
     fig, ax = plt.subplots()
 
@@ -189,24 +213,34 @@ def main():
         time_stamp_array = time_stamp_array[roi_index]
         time_stamp_array = (time_stamp_array - final_valve_on) / 1000
 
+        pass_off_index = np.where(time_stamp_array > pass_valve_off)[0][0]
         smoothed_data = smooth_data(sniff_data_array)
         normalized_data = normalize_data(smoothed_data)
-        troughless_data, passivation_start = spline_extrapolation(normalized_data)
+        troughless_data, passivation_start = linear_extrapolation(normalized_data)
 
-        passivation_auc = get_passivation_rate(time_stamp_array, troughless_data, pass_valve_off, passivation_start)
-        depassivation_auc = get_depassivation_rate(time_stamp_array, troughless_data, pass_valve_off)
+        # ax.axvline(x=time_stamp_array[t1])
+        # ax.axvline(x=time_stamp_array[t2])
+        passivation_auc, passivation_time_delay = get_passivation_rate(time_stamp_array, normalized_data,
+                                                                       pass_valve_off, passivation_start)
+        depassivation_aucs, depassivation_time_delays = get_depassivation_rate(time_stamp_array, normalized_data,
+                                                                               pass_valve_off, cutoff_percentages)
 
         ax.plot(time_stamp_array, troughless_data)
 
         # ax.fill_between(x_component, y_component, color='r')
 
         result = [odor_name[i], odor_concentration[i], tube_length[i], diluter_flowrate[i], carrier_flowrate[i],
-                  passivation_auc, depassivation_auc]
+                  passivation_auc, passivation_time_delay]
+
+        for z, each in enumerate(depassivation_time_delays):
+            result.append(depassivation_aucs[z])
+            result.append(each)
+
         data.append(result)
 
     h5_file.close()
 
-    save_data(data, file_folder, file_stem, fig)
+    save_data(data, file_folder, file_stem, fig, cutoff_percentages)
 
     fig.show()
 

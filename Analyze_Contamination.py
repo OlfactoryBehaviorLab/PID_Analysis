@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -56,11 +58,16 @@ def find_lower_bound(time_stamps):
     return lower_bound
 
 
-def save_csv(data, file_stem):
+def save_data(data, file_path, file_stem, fig):
     column_labels = ['Odor Name', 'Odor Concentration', 'Tube Length', 'Dilutor', 'Carrier', 'Passivation',
                      'Depassivation']
     output = pd.DataFrame(data, columns=column_labels)
-    output.to_csv(f'.\\{file_stem}-CONTAMINATION.csv', index=False)
+
+    csv_path = os.path.join(file_path, f'{file_stem}-CONTAMINATION.csv')
+    tiff_path = os.path.join(file_path, f'{file_stem}.tiff')
+
+    output.to_csv(csv_path, index=False)
+    fig.savefig(tiff_path, dpi=600)
 
 
 def are_keys_in_string(keys, string):
@@ -128,10 +135,7 @@ def get_depassivation_rate(time_stamp_array, troughless_data, pass_off_time):
 
 
 def main():
-    # ile_path, file_stem = DewanPID_Utils.get_file()
-    file_path = 'Z:/.shortcut-targets-by-id/1w5pXfYEglH4gN9jQZ-0IN-_tF12U472o/Dewan Lab Google Drive' \
-                '/Projects/PID/Contamination/RAW Files/odorContamination_ConcSeries_sess1_D2023_5_9T8_56_38.h5'
-    file_stem = 'odorContamination_ConcSeries_sess1_D2023_5_9T8_56_38'
+    file_path, file_stem, file_folder = DewanPID_Utils.get_file()
     h5_file = DewanPID_Utils.open_h5_file(file_path)
 
     data = []
@@ -202,9 +206,10 @@ def main():
 
     h5_file.close()
 
+    save_data(data, file_folder, file_stem, fig)
+
     fig.show()
 
-    save_csv(data, file_stem)
 
 
 if __name__ == '__main__':

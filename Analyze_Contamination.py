@@ -6,13 +6,12 @@ import PID_with_Plotting
 import tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage import uniform_filter1d
+from scipy import signal, interpolate
 
 import DewanPID_Utils
 
 BIT_CONVERSION_FACTOR = 4.8828
 
-
-# TODO Smooth Data -> Moving Window 5-10
 # TODO Rising Side (Do everything in reverse) Go to 95% of max
 # TODO Save Normalization Figures
 # TODO Make each odor-concentration pair the same color
@@ -29,9 +28,8 @@ def normalize_data(sniff_data):
     return output_data
 
 
-def smooth_data(sniff_data, window_size=10, mode='reflect'):
+def smooth_data(sniff_data, window_size=15, mode='reflect'):
     smoothed_data = uniform_filter1d(sniff_data, size=window_size, mode=mode)
-
     return smoothed_data
 
 
@@ -77,6 +75,54 @@ def get_non_odor_trials(odor_names):
     return indexes
 
 
+def get_troughs(normalized_data):
+    troughs = signal.argrelextrema(normalized_data[1000:1300], np.less_equal, order=5)[0]
+    t1 = troughs[0] + 1000
+    t2 = troughs[-1] + 1000
+
+    return t1, t2
+
+
+def linear_extrapolation(normalized_data):
+    t1, t2 = get_troughs(normalized_data)
+
+    y_lower = normalized_data[t1]
+    y_upper = normalized_data[t2]
+
+    num_of_nums = t2-t1
+
+    new_y = np.linspace(y_lower, y_upper, num=num_of_nums)
+
+    normalized_data[t1:t2] = new_y
+
+    return normalized_data
+
+def cubic_extrapolation(normalized_data):
+    t1, t2 = get_troughs(normalized_data)
+
+    x_vals = np.arange(0, len(normalized_data))
+    new_xvals = np.arange(t1, t2)
+    function = interpolate.interp1d(x_vals, normalized_data, kind='quadratic')
+
+    new_y = function(new_xvals)
+    normalized_data[t1:t2] = new_y
+
+    return normalized_data
+
+def polyfit_extrapolation(normalized_data):
+    t1, t2 = get_troughs(normalized_data)
+    new_xvals = np.arange(t1, t2)
+
+    x_vals = np.arange(0, len(normalized_data))
+    coeffs = np.polyfit(x_vals, normalized_data, 3)
+
+    extrapolated_values = np.polyval(coeffs, new_xvals)
+
+    normalized_data[t1:t2] = extrapolated_values
+
+    return normalized_data
+
+
 def main():
     file_path, file_stem = DewanPID_Utils.get_file()
     h5_file = DewanPID_Utils.open_h5_file(file_path)
@@ -88,23 +134,27 @@ def main():
 
     trials = h5_file['/Trials']
     trial_names = list(h5_file.keys())
-    type_2_trials = np.where(trials['trialtype'] == 2)[0]
+    type_6_trials = np.where(trials['trialtype'] == 6)[0]
 
-    odor_name = DewanPID_Utils.decode_list(trials['odor'][type_2_trials])
+    odor_name = DewanPID_Utils.decode_list(trials['odor'][type_6_trials])
     odor_indexes = get_non_odor_trials(odor_name)
 
-    type_2_trials = np.array(type_2_trials)[odor_indexes]
-    num_type_2_trials = len(type_2_trials)
+    type_6_trials = np.array(type_6_trials)[odor_indexes]
+    num_type_6_trials = len(type_6_trials)
 
     odor_name = odor_name[odor_indexes]
-    final_valve_on_time = trials['fvOnTime'][type_2_trials]
-    odor_concentration = trials['odorconc'][type_2_trials]
-    pid_gain = trials['PIDGain'][type_2_trials]
-    carrier_flowrate = trials['Carrier_flowrate'][type_2_trials]
+    final_valve_on_time = trials['fvOnTime'][type_6_trials]
+    odor_concentration = trials['odorconc'][type_6_trials]
+    pid_gain = trials['PIDGain'][type_6_trials]
+    carrier_flowrate = trials['Carrier_flowrate'][type_6_trials]
+    diluter_flowrate = trials['Dilutor_flowrate'][type_6_trials]
+    pass_valve_off_time = trials['PassOffTime'][type_6_trials]
+    tube_length = trials['Tube'][type_6_trials]
+
     fig, ax = plt.subplots()
 
-    for i in tqdm.trange(num_type_2_trials):
-        trial_number = type_2_trials[i]
+    for i in range(num_type_6_trials):
+        trial_number = type_6_trials[i]
         trial_name = trial_names[trial_number]
 
         event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
@@ -123,30 +173,24 @@ def main():
         time_stamp_array = (time_stamp_array - final_valve_on_time[i]) / 1000
         end_baseline = int(sec_before * 1000 - 100)
         baseline = np.mean(sniff_data_array[100:end_baseline])
-        sniff_data_array = sniff_data_array - baseline
-
-        sniff_data_array = bits_2_volts(sniff_data_array, pid_gain[i], carrier_flowrate[i])
 
         smoothed_data = smooth_data(sniff_data_array)
-
         normalized_data = normalize_data(smoothed_data)
+        troughless_data = linear_extrapolation(normalized_data)
 
-        integral_lower_bound = find_lower_bound(time_stamp_array)
-        integral_upper_bound = find_upper_bound(normalized_data, integral_lower_bound)
+        passivation_value = get_passivation_rate()
 
-        y_component = normalized_data[integral_lower_bound:integral_upper_bound]
-        x_component = time_stamp_array[integral_lower_bound:integral_upper_bound]
+        depassivation_value = get_depassivation_rate()
 
-        ax.plot(time_stamp_array, normalized_data)
+        ax.plot(time_stamp_array, troughless_data)
+
         # ax.fill_between(x_component, y_component, color='r')
 
-        time_delay = integral_upper_bound - integral_lower_bound
+       # AUC = get_auc(x_component, y_component)
 
-        AUC = get_auc(x_component, y_component)
+       # result = [odor_name[i], odor_concentration[i], AUC, time_delay]
 
-        result = [odor_name[i], odor_concentration[i], AUC, time_delay]
-
-        data.append(result)
+       # data.append(result)
 
     h5_file.close()
 

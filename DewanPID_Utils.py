@@ -46,3 +46,6 @@ def get_file() -> (str, str):
     filename = sg.popup_get_file("Select H5 File...", file_types=(("H5 Files", "*.h5"), ("All Files", "*.*")))
     file_stem = os.path.basename(filename)
     return filename, file_stem
+
+
+

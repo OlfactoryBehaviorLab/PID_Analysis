@@ -69,7 +69,11 @@ def save_data(data, file_path, file_stem, fig, cutoff_percentages):
 
 
 def are_keys_in_string(keys, string):
-    return any(key in string for key in keys)
+    if any(len(key) == len(string) for key in keys):
+        if any(key in string for key in keys):
+            return True
+
+    return False
     # Look for a string in a set of keys
 
 

@@ -78,11 +78,13 @@ def are_keys_in_string(keys, string):
 
 def get_non_odor_trials(odor_names):
     keys = ['blank', 'mo', 'h2o']
+
     indexes = [are_keys_in_string(keys, str.lower(item)) for item in odor_names]
-    # See if there are any non-odor names in odors_names
     indexes = np.logical_not(indexes)
+    # See if there are any non-odor names in odors_names
+    good_indexes = np.arange(len(odor_names))[indexes]
     # Flip the indexes to get the good ones
-    return indexes
+    return good_indexes
 
 
 def get_troughs(normalized_data):
@@ -153,6 +155,13 @@ def get_depassivation_rate(time_stamp_array, troughless_data, pass_off_time, cut
     return auc_vals, time_diffs
 
 
+def combine_indexes(type_6, odor_trials, good_conc, good_tube):
+    temp_array = np.intersect1d(type_6, odor_trials)
+    temp_array_2 = np.intersect1d(good_conc, good_tube)
+    combined_index = np.intersect1d(temp_array, temp_array_2)
+    return combined_index
+
+
 def main():
     # # # Configurables # # #
     max_tube_length = 200
@@ -173,34 +182,26 @@ def main():
     trial_names = list(h5_file.keys())
     type_6_trials = np.where(trials['trialtype'] == 6)[0]
     # We are only interested when trialtype is six. The first trial is usually a 0/1
-
-    odor_name = DewanPID_Utils.decode_list(trials['odor'][type_6_trials])
+    odor_name = DewanPID_Utils.decode_list(trials['odor'])
     # odor_names are stored as bytes and need to be decoded using utf-8
     odor_indexes = get_non_odor_trials(odor_name)  # Remove Blanks and MO if present
-
-    type_6_trials = np.array(type_6_trials)[odor_indexes]  # Select only the odor trials
-
-    odor_concentration = trials['odorconc'][type_6_trials]
+    odor_concentration = trials['odorconc']
     good_concentrations = np.where(odor_concentration > min_concentration)[0]
     # Filter out concentrations under our cutoff; sometimes the low concentrations are not good due to signal:noise
-    odor_concentration = odor_concentration[good_concentrations]
-    type_6_trials = type_6_trials[good_concentrations]
-
-    tube_length = trials['Tube'][type_6_trials]
+    tube_length = trials['Tube']
     good_tubes = np.where(tube_length < max_tube_length)[0]
     # Filter out tube lengths over a certain length
-
-    type_6_trials = type_6_trials[good_tubes]
-
-    odor_name = odor_name[type_6_trials]
-    final_valve_on_time = trials['fvOnTime'][type_6_trials]
-    pid_gain = trials['PIDGain'][type_6_trials]
-    carrier_flowrate = trials['Carrier_flowrate'][type_6_trials]
-    diluter_flowrate = trials['Dilutor_flowrate'][type_6_trials]
-    pass_valve_off_time = trials['PassOffTime'][type_6_trials]
+    good_trials = combine_indexes(type_6_trials, odor_indexes, good_concentrations, good_tubes)
+    # Find the common items between all our cutoffs/filters
+    odor_name = odor_name[good_trials]
+    final_valve_on_time = trials['fvOnTime'][good_trials]
+    pid_gain = trials['PIDGain'][good_trials]
+    carrier_flowrate = trials['Carrier_flowrate'][good_trials]
+    diluter_flowrate = trials['Dilutor_flowrate'][good_trials]
+    pass_valve_off_time = trials['PassOffTime'][good_trials]
     # ^^^ Get all data out
 
-    num_type_6_trials = len(type_6_trials)
+    num_type_6_trials = len(good_trials)
 
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
@@ -208,13 +209,10 @@ def main():
     for i in range(num_type_6_trials):  # Loop through all of our trials
         trial_number = type_6_trials[i]
         trial_name = trial_names[trial_number]
-
         event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
         # Get sniff data out of H5 File; this contains our actual PID measurement
-
         sniff_samples = event_data['sniff_samples']
         packet_sent_time = event_data['packet_sent_time']
-
         sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
                                                                              sniff_samples, packet_sent_time)
         # The packets come out in chunks, we want to linearize them into a long list to pick and choose from

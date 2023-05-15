@@ -11,6 +11,8 @@ BIT_CONVERSION_FACTOR = 4.8828
 
 
 # TODO Make each odor-concentration pair the same color
+# TODO Passofftime - trialdur == "fv on time" for the new setup
+# TODO Control==7 Tube == 8 trialTypes
 
 def get_auc(x, y):
     trap = np.trapz(y, x)
@@ -164,14 +166,14 @@ def combine_indexes(type_6, odor_trials, good_conc, good_tube):
 
 def main():
     # # # Configurables # # #
-    max_tube_length = 200
-    min_concentration = 1
+    max_tube_length = 1000
+    min_concentration = 0.01
     sec_before = 1
     sec_after = 10
     cutoff_percentages = [5, 10, 25, 50, 75, 95]
     # # # Configurables # # #
 
-    file_path, file_stem, file_folder = DewanPID_Utils.get_file()
+    file_path, file_stem, file_folder = DewanPID_Utils.get_file('R:/PID_CF/Contamination/RAW Files/odorContaminationSLandBA_sess1_D2023_5_15T14_15_38.h5')
     h5_file = DewanPID_Utils.open_h5_file(file_path)
     # Open our data file
 
@@ -202,12 +204,11 @@ def main():
     # ^^^ Get all data out
 
     num_type_6_trials = len(good_trials)
-
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
 
-    for i in range(num_type_6_trials):  # Loop through all of our trials
-        trial_number = type_6_trials[i]
+    for i in range(1, num_type_6_trials):  # Loop through all of our trials
+        trial_number = good_trials[i]
         trial_name = trial_names[trial_number]
         event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
         # Get sniff data out of H5 File; this contains our actual PID measurement
@@ -215,16 +216,19 @@ def main():
         packet_sent_time = event_data['packet_sent_time']
         sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
                                                                              sniff_samples, packet_sent_time)
+        print(time_stamp_array)
         # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
-
         final_valve_on = final_valve_on_time[i]
+        print(final_valve_on)
         pass_valve_off = (pass_valve_off_time[i] - final_valve_on) / 1000
 
         TOI_start = final_valve_on - sec_before * 1000
         TOI_end = final_valve_on + sec_after * 1000
+        print(TOI_end)
         # We don't want all the data, so cut it off some before and some after the final valve goes off
 
         roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
+        print(roi_index)
         # Get all the data between our cutoff values
 
         sniff_data_array = sniff_data_array[roi_index]
@@ -232,6 +236,7 @@ def main():
         time_stamp_array = (time_stamp_array - final_valve_on) / 1000
 
         smoothed_data = smooth_data(sniff_data_array)  # Run a moving window
+        print(smoothed_data)
         normalized_data = normalize_data(smoothed_data)  # Normalize all the data between 0-100
         troughless_data, passivation_start = linear_extrapolation(normalized_data)
         # Remove the weird pressure spike by identifying the troughs and running linear interpolation

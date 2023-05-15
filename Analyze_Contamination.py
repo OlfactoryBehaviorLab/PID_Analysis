@@ -69,10 +69,9 @@ def save_data(data, file_path, file_stem, fig, cutoff_percentages):
 
 
 def are_keys_in_string(keys, string):
-    if any(len(key) == len(string) for key in keys):
-        if any(key in string for key in keys):
+    for key in keys:
+        if np.logical_and((len(key) == len(string)), (key in string)):
             return True
-
     return False
     # Look for a string in a set of keys
 

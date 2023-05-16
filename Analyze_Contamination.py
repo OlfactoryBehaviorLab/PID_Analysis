@@ -20,13 +20,18 @@ def get_auc(x, y):
     return trap
 
 
-def normalize_data(sniff_data):
-    normalize_factor = np.max(sniff_data) * 0.01
+def normalize_data(sniff_data, max_val):
+    #normalize_factor = np.max(sniff_data) * 0.01
+    normalize_factor = max_val * 0.01
     # Calculate our normalization factor (max / 100)
     output_data = np.divide(sniff_data, normalize_factor)
     # Divide all datapoints by normalization factor
     return output_data
 
+def baseline_shift(data):
+    baseline = abs(np.min(data))
+    data = np.subtract(data, baseline)
+    return data
 
 def smooth_data(sniff_data, window_size=15, mode='reflect'):
     smoothed_data = uniform_filter1d(sniff_data, size=window_size, mode=mode)
@@ -53,6 +58,7 @@ def generate_header(cutoff_percentages):
         column_labels.append(auc_label)
         column_labels.append(time_delay_label)
     # Generate labels for each Passivation Cutoff
+    column_labels.append('Trial Type')
 
     return column_labels
 
@@ -171,7 +177,7 @@ def main():
     max_tube_length = 1000
     min_concentration = 0.01
     sec_before = 1
-    sec_after = 10
+    sec_after = 30
     cutoff_percentages = [5, 10, 25, 50, 75, 95]
     # # # Configurables # # #
 
@@ -201,7 +207,6 @@ def main():
     good_tubes = np.where(tube_length < max_tube_length)[0]
     # Filter out tube lengths over a certain length
     good_trials = combine_indexes(type_6_trials, type_7_trials, type_8_trials, odor_indexes, good_concentrations, good_tubes)
-    print(good_trials)
     # Find the common items between all our cutoffs/filters
     odor_name = odor_name[good_trials]
     final_valve_on_time = trials['fvOnTime'][good_trials]
@@ -209,14 +214,14 @@ def main():
     carrier_flowrate = trials['Carrier_flowrate'][good_trials]
     diluter_flowrate = trials['Dilutor_flowrate'][good_trials]
     pass_valve_off_time = trials['PassOffTime'][good_trials]
-
+    trial_duration = trials['trialdur'][good_trials]
     # ^^^ Get all data out
 
     number_of_trials = len(good_trials)
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
 
-    for i in range(1, number_of_trials):  # Loop through all of our trials
+    for i in range(0, number_of_trials-1):  # Loop through all of our trials
         trial_number = good_trials[i]
         trial_name = trial_names[trial_number]
         event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
@@ -226,22 +231,25 @@ def main():
         sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
                                                                              sniff_samples, packet_sent_time)
         # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
-        final_valve_on = final_valve_on_time[i]
-        pass_valve_off = (pass_valve_off_time[i] - final_valve_on) / 1000
+        # final_valve_on = final_valve_on_time[i]
+        real_final_valve_on = pass_valve_off_time[i] - trial_duration[i] - 1
+        real_final_valve_on_msec = real_final_valve_on / 1000
+        pass_valve_off = (pass_valve_off_time[i] - real_final_valve_on) / 1000
 
-        TOI_start = final_valve_on - sec_before * 1000
-        TOI_end = final_valve_on + sec_after * 1000
+        TOI_start = real_final_valve_on - sec_before * 1000
+        TOI_end = real_final_valve_on + sec_after * 1000
         # We don't want all the data, so cut it off some before and some after the final valve goes off
 
         roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
         # Get all the data between our cutoff values
-
         sniff_data_array = sniff_data_array[roi_index]
         time_stamp_array = time_stamp_array[roi_index]
-        time_stamp_array = (time_stamp_array - final_valve_on) / 1000
-
+        time_stamp_array = (time_stamp_array - real_final_valve_on) / 1000
         smoothed_data = smooth_data(sniff_data_array)  # Run a moving window
-        normalized_data = normalize_data(smoothed_data)  # Normalize all the data between 0-100
+        baseline_shifted_data = baseline_shift(smoothed_data)
+        max_index = np.where(pass_valve_off == time_stamp_array)[0][0]
+        max_value = np.mean(sniff_data_array[max_index-500:max_index-100])
+        normalized_data = normalize_data(baseline_shifted_data, max_value)  # Normalize all the data between 0-100
         troughless_data, passivation_start = linear_extrapolation(normalized_data)
         # Remove the weird pressure spike by identifying the troughs and running linear interpolation
 
@@ -267,12 +275,26 @@ def main():
             result.append(each)
         # The depassivation values come out as a list, so unpack them and add them to the list
 
-        data_type_6.append(result)
+        if i in type_6_trials:
+            result.extend('6')
+            data_type_6.append(result)
+        elif i in type_7_trials:
+            result.extend('7')
+            data_type_7.append(result)
+        elif i in type_8_trials:
+            result.extend('8')
+            data_type_8.append(result)
+
         # Add our data for this trial to the complete list of data for export
-
+    data = []
+    for each in data_type_6:
+        data.append(each)
+    for each in data_type_7:
+        data.append(each)
+    for each in data_type_8:
+        data.append(each)
     h5_file.close()
-
-    save_data(data_type_6, file_folder, file_stem, fig, cutoff_percentages)
+    save_data(data, file_folder, file_stem, fig, cutoff_percentages)
     # Output the data and the figure
 
     fig.show()

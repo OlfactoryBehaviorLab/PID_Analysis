@@ -157,11 +157,13 @@ def get_depassivation_rate(time_stamp_array, troughless_data, pass_off_time, cut
     return auc_vals, time_diffs
 
 
-def combine_indexes(type_6, odor_trials, good_conc, good_tube):
-    temp_array = np.intersect1d(type_6, odor_trials)
-    temp_array_2 = np.intersect1d(good_conc, good_tube)
-    combined_index = np.intersect1d(temp_array, temp_array_2)
-    return combined_index
+def combine_indexes(type_6, type_7, type_8, odor_trials, good_conc, good_tube):
+    good_indexes_1 = np.intersect1d(good_tube, odor_trials)
+    good_indexes_2 = np.intersect1d(good_conc, good_indexes_1)
+    good_trials = np.concatenate((type_6, type_7, type_8))
+    temp_array_1 = np.intersect1d(good_trials, good_indexes_2)
+    temp_array_1 = np.sort(temp_array_1)
+    return temp_array_1
 
 
 def main():
@@ -177,12 +179,17 @@ def main():
     h5_file = DewanPID_Utils.open_h5_file(file_path)
     # Open our data file
 
-    data = []
+    data_type_6 = []
+    data_type_7 = []
+    data_type_8 = []
     # Empty list for our trial data
 
     trials = h5_file['/Trials']
     trial_names = list(h5_file.keys())
     type_6_trials = np.where(trials['trialtype'] == 6)[0]
+    type_7_trials = np.where(trials['trialtype'] == 7)[0]
+    type_8_trials = np.where(trials['trialtype'] == 8)[0]
+
     # We are only interested when trialtype is six. The first trial is usually a 0/1
     odor_name = DewanPID_Utils.decode_list(trials['odor'])
     # odor_names are stored as bytes and need to be decoded using utf-8
@@ -193,7 +200,8 @@ def main():
     tube_length = trials['Tube']
     good_tubes = np.where(tube_length < max_tube_length)[0]
     # Filter out tube lengths over a certain length
-    good_trials = combine_indexes(type_6_trials, odor_indexes, good_concentrations, good_tubes)
+    good_trials = combine_indexes(type_6_trials, type_7_trials, type_8_trials, odor_indexes, good_concentrations, good_tubes)
+    print(good_trials)
     # Find the common items between all our cutoffs/filters
     odor_name = odor_name[good_trials]
     final_valve_on_time = trials['fvOnTime'][good_trials]
@@ -201,13 +209,14 @@ def main():
     carrier_flowrate = trials['Carrier_flowrate'][good_trials]
     diluter_flowrate = trials['Dilutor_flowrate'][good_trials]
     pass_valve_off_time = trials['PassOffTime'][good_trials]
+
     # ^^^ Get all data out
 
-    num_type_6_trials = len(good_trials)
+    number_of_trials = len(good_trials)
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
 
-    for i in range(1, num_type_6_trials):  # Loop through all of our trials
+    for i in range(1, number_of_trials):  # Loop through all of our trials
         trial_number = good_trials[i]
         trial_name = trial_names[trial_number]
         event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
@@ -216,19 +225,15 @@ def main():
         packet_sent_time = event_data['packet_sent_time']
         sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
                                                                              sniff_samples, packet_sent_time)
-        print(time_stamp_array)
         # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
         final_valve_on = final_valve_on_time[i]
-        print(final_valve_on)
         pass_valve_off = (pass_valve_off_time[i] - final_valve_on) / 1000
 
         TOI_start = final_valve_on - sec_before * 1000
         TOI_end = final_valve_on + sec_after * 1000
-        print(TOI_end)
         # We don't want all the data, so cut it off some before and some after the final valve goes off
 
         roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
-        print(roi_index)
         # Get all the data between our cutoff values
 
         sniff_data_array = sniff_data_array[roi_index]
@@ -236,7 +241,6 @@ def main():
         time_stamp_array = (time_stamp_array - final_valve_on) / 1000
 
         smoothed_data = smooth_data(sniff_data_array)  # Run a moving window
-        print(smoothed_data)
         normalized_data = normalize_data(smoothed_data)  # Normalize all the data between 0-100
         troughless_data, passivation_start = linear_extrapolation(normalized_data)
         # Remove the weird pressure spike by identifying the troughs and running linear interpolation
@@ -263,12 +267,12 @@ def main():
             result.append(each)
         # The depassivation values come out as a list, so unpack them and add them to the list
 
-        data.append(result)
+        data_type_6.append(result)
         # Add our data for this trial to the complete list of data for export
 
     h5_file.close()
 
-    save_data(data, file_folder, file_stem, fig, cutoff_percentages)
+    save_data(data_type_6, file_folder, file_stem, fig, cutoff_percentages)
     # Output the data and the figure
 
     fig.show()

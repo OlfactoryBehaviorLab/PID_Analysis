@@ -20,18 +20,25 @@ def get_auc(x, y):
     return trap
 
 
-def normalize_data(sniff_data, max_val):
-    #normalize_factor = np.max(sniff_data) * 0.01
-    normalize_factor = max_val * 0.01
+def normalize_data(baseline_shift_data, sniff_data_array, pass_end_index):
+    # max_index = np.where(pass_valve_off == time_stamp_array)[0][0]  # Find the index for the passivation end time
+    max_value_first_index = pass_end_index - 500
+    max_value_second_index = pass_end_index - 100
+    max_value = np.mean(sniff_data_array[max_value_first_index:max_value_second_index])
+    # Get an average of the maximum values 400msec before passivation ends
+
+    normalize_factor = max_value * 0.01
     # Calculate our normalization factor (max / 100)
-    output_data = np.divide(sniff_data, normalize_factor)
+    output_data = np.divide(baseline_shift_data, normalize_factor)
     # Divide all datapoints by normalization factor
     return output_data
+
 
 def baseline_shift(data):
     baseline = abs(np.min(data))
     data = np.subtract(data, baseline)
     return data
+
 
 def smooth_data(sniff_data, window_size=15, mode='reflect'):
     smoothed_data = uniform_filter1d(sniff_data, size=window_size, mode=mode)
@@ -124,24 +131,27 @@ def linear_extrapolation(normalized_data):
     return normalized_data, t1
 
 
-def get_passivation_rate(time_stamp_array, troughless_data, pass_off_time, passivation_start):
-    start_roi = time_stamp_array[passivation_start]
+def get_passivation_rate(time_stamp_array, normalized_data, passivation_start_index, passivation_end_index):
+
+    # start_roi = time_stamp_array[passivation_start_index]  # Get time in seconds for the start of passivation
+    # end_roi = time_stamp_array[passivation_end_index]  # Get time in seconds for the end of passivation
+
     # Our initial point is where the passivation starts
-    roi = DewanPID_Utils.get_roi(start_roi, pass_off_time, time_stamp_array)
+    # roi = DewanPID_Utils.get_roi(start_roi, end_roi, time_stamp_array)
     # Get the ROI for the passivation, from the start point to 1000msec before the pass valve switches off
-    x_vals = time_stamp_array[roi]
-    y_vals = troughless_data[roi]
+    x_vals = time_stamp_array[passivation_start_index:passivation_end_index]
+    y_vals = normalized_data[passivation_start_index:passivation_end_index]
     passivation_auc = get_auc(x_vals, y_vals)
     # Calculate AUC for the passivation area
-    passivation_time_delay = np.sum(np.diff(time_stamp_array[roi]))
+    passivation_time_delay = np.sum(np.diff(x_vals))
     # Add up all the time differences to get the delay for the passivation
     return passivation_auc, passivation_time_delay
 
 
-def get_depassivation_rate(time_stamp_array, troughless_data, pass_off_time, cutoff_percentages):
-    off_index = np.where(time_stamp_array == pass_off_time)[0]
+def get_depassivation_rate(time_stamp_array, normalized_data, passivation_off_index, cutoff_percentages):
+    # off_index = np.where(time_stamp_array == pass_off_time)[0]
     # The index where the passivation valve switches off
-    max_value = troughless_data[off_index]
+    max_value = normalized_data[passivation_off_index]
     # Passivation starts exactly where the valve switches off
     cutoff_values = np.multiply(max_value, np.divide(cutoff_percentages, 100))
     # Calculate the various percentages of the max value
@@ -149,15 +159,15 @@ def get_depassivation_rate(time_stamp_array, troughless_data, pass_off_time, cut
     time_diffs = []
 
     for each in cutoff_values:
-        roi = DewanPID_Utils.get_roi(each, max_value, troughless_data)
-        time_diff = roi[-1] - off_index
+        roi = DewanPID_Utils.get_roi(each, max_value, normalized_data)
+        time_diff = roi[-1] - passivation_off_index
         # Get the roi for each cutoff
         # The time difference is where the roi ends - where the valve switches off
         x_vals = time_stamp_array[roi]
-        y_vals = troughless_data[roi]
+        y_vals = normalized_data[roi]
 
         auc_vals.append(get_auc(x_vals, y_vals))
-        time_diffs.append(time_diff[0])
+        time_diffs.append(time_diff)
         # Calculate the AUC and append the data to our return list
 
     return auc_vals, time_diffs
@@ -181,7 +191,7 @@ def main():
     cutoff_percentages = [5, 10, 25, 50, 75, 95]
     # # # Configurables # # #
 
-    file_path, file_stem, file_folder = DewanPID_Utils.get_file('R:/PID_CF/Contamination/RAW Files/odorContaminationSLandBA_sess1_D2023_5_15T14_15_38.h5')
+    file_path, file_stem, file_folder = DewanPID_Utils.get_file()
     h5_file = DewanPID_Utils.open_h5_file(file_path)
     # Open our data file
 
@@ -209,19 +219,22 @@ def main():
     good_trials = combine_indexes(type_6_trials, type_7_trials, type_8_trials, odor_indexes, good_concentrations, good_tubes)
     # Find the common items between all our cutoffs/filters
     odor_name = odor_name[good_trials]
-    final_valve_on_time = trials['fvOnTime'][good_trials]
-    pid_gain = trials['PIDGain'][good_trials]
     carrier_flowrate = trials['Carrier_flowrate'][good_trials]
     diluter_flowrate = trials['Dilutor_flowrate'][good_trials]
     pass_valve_off_time = trials['PassOffTime'][good_trials]
+    pass_valve_on_time = trials['PassOnTime'][good_trials]
     trial_duration = trials['trialdur'][good_trials]
+
     # ^^^ Get all data out
 
     number_of_trials = len(good_trials)
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
 
-    for i in range(0, number_of_trials-1):  # Loop through all of our trials
+    for i in range(0, number_of_trials):  # Loop through all of our trials
+        print(i)
+        if i == 30:
+            continue
         trial_number = good_trials[i]
         trial_name = trial_names[trial_number]
         event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
@@ -231,39 +244,45 @@ def main():
         sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
                                                                              sniff_samples, packet_sent_time)
         # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
-        # final_valve_on = final_valve_on_time[i]
-        real_final_valve_on = pass_valve_off_time[i] - trial_duration[i] - 1
-        real_final_valve_on_msec = real_final_valve_on / 1000
-        pass_valve_off = (pass_valve_off_time[i] - real_final_valve_on) / 1000
+        # final_valve_on_time = pass_valve_off_time[i] - trial_duration[i] - 1
+        # final_valve_on_time_msec = final_valve_on_time / 1000
 
-        TOI_start = real_final_valve_on - sec_before * 1000
-        TOI_end = real_final_valve_on + sec_after * 1000
-        # We don't want all the data, so cut it off some before and some after the final valve goes off
+        passivation_start_time = pass_valve_on_time[i]  # When passivation starts in msec
+        passivation_stop_time = pass_valve_off_time[i]  # When passivation ends in msec
+        TOI_start = passivation_start_time - (sec_before * 1000)
+        TOI_end = passivation_stop_time + (sec_after * 1000)
+        # We don't want all the data, so cut it before and after the passivation times
 
         roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
+        # Get the ROI from the time_stamp_array in msecs
         # Get all the data between our cutoff values
         sniff_data_array = sniff_data_array[roi_index]
         time_stamp_array = time_stamp_array[roi_index]
-        time_stamp_array = (time_stamp_array - real_final_valve_on) / 1000
-        smoothed_data = smooth_data(sniff_data_array)  # Run a moving window
-        baseline_shifted_data = baseline_shift(smoothed_data)
-        max_index = np.where(pass_valve_off == time_stamp_array)[0][0]
-        max_value = np.mean(sniff_data_array[max_index-500:max_index-100])
-        normalized_data = normalize_data(baseline_shifted_data, max_value)  # Normalize all the data between 0-100
-        troughless_data, passivation_start = linear_extrapolation(normalized_data)
-        # Remove the weird pressure spike by identifying the troughs and running linear interpolation
+        passivation_start_index = np.where(passivation_start_time == time_stamp_array)[0][0]
+        passivation_end_index = np.where(passivation_stop_time == time_stamp_array)[0][0]
+        # Get indexes for the start/stop time before it's converted to msec
+        time_stamp_array = (time_stamp_array - passivation_start_time) / 1000
+        # Convert time_stamp_array to seconds for plotting
 
-        # ax.axvline(x=time_stamp_array[t1])
-        # ax.axvline(x=time_stamp_array[t2])
+        smoothed_data = smooth_data(sniff_data_array)  # Run a moving window average
+
+        baseline_shifted_data = baseline_shift(smoothed_data)  # Do a baseline shift so the lowest value is 0
+
+        normalized_data = normalize_data(baseline_shifted_data, sniff_data_array, passivation_end_index)
+        # Normalize all the data between 0-100
+        # troughless_data, passivation_start = linear_extrapolation(normalized_data)
+        # Remove the weird pressure spike by identifying the troughs and running linear interpolation
+        # Might not need this anymore 5/17/23 ACP
+
         passivation_auc, passivation_time_delay = get_passivation_rate(time_stamp_array, normalized_data,
-                                                                       pass_valve_off, passivation_start)
+                                                                       passivation_start_index, passivation_end_index)
         # Get passivation areas and time delays for the rising curve
 
         depassivation_aucs, depassivation_time_delays = get_depassivation_rate(time_stamp_array, normalized_data,
-                                                                               pass_valve_off, cutoff_percentages)
+                                                                               passivation_end_index, cutoff_percentages)
         # Get the depassivation areas and time delays for all the cutoff values
 
-        ax.plot(time_stamp_array, troughless_data)
+        ax.plot(time_stamp_array, normalized_data)
         # Plot the traces on top of each other
 
         result = [odor_name[i], odor_concentration[i], tube_length[i], diluter_flowrate[i], carrier_flowrate[i],

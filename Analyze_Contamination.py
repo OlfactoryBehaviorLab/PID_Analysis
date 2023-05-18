@@ -9,10 +9,7 @@ import DewanPID_Utils
 
 BIT_CONVERSION_FACTOR = 4.8828
 
-
-# TODO Make each odor-concentration pair the same color
-# TODO Passofftime - trialdur == "fv on time" for the new setup
-# TODO Control==7 Tube == 8 trialTypes
+## TODO Make each odor-concentration pair the same color
 
 def get_auc(x, y):
     trap = np.trapz(y, x)
@@ -182,6 +179,11 @@ def combine_indexes(type_6, type_7, type_8, odor_trials, good_conc, good_tube):
     return temp_array_1
 
 
+def get_intersection(curve_1, curve_2):
+    intersects = np.where(np.isclose(curve_1, curve_2, rtol=1e-3, atol=1e-3))[0]
+    return intersects
+
+
 def main():
     # # # Configurables # # #
     max_tube_length = 1000
@@ -189,6 +191,7 @@ def main():
     sec_before = 1
     sec_after = 30
     cutoff_percentages = [5, 10, 25, 50, 75, 95]
+    bad_trials = [13, 30, 31]
     # # # Configurables # # #
 
     file_path, file_stem, file_folder = DewanPID_Utils.get_file()
@@ -199,6 +202,9 @@ def main():
     data_type_7 = []
     data_type_8 = []
     # Empty list for our trial data
+    plot_type_7 = []
+    plot_type_8 = []
+
 
     trials = h5_file['/Trials']
     trial_names = list(h5_file.keys())
@@ -224,17 +230,18 @@ def main():
     pass_valve_off_time = trials['PassOffTime'][good_trials]
     pass_valve_on_time = trials['PassOnTime'][good_trials]
     trial_duration = trials['trialdur'][good_trials]
-
     # ^^^ Get all data out
 
     number_of_trials = len(good_trials)
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
 
-    for i in range(0, number_of_trials):  # Loop through all of our trials
-        print(i)
-        if i == 30:
+    for i in range(number_of_trials):  # Loop through all of our trials
+
+        if i in bad_trials:  # Provide a way to skip corrupted trials
             continue
+
+
         trial_number = good_trials[i]
         trial_name = trial_names[trial_number]
         event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
@@ -244,6 +251,7 @@ def main():
         sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
                                                                              sniff_samples, packet_sent_time)
         # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
+        # Probably should change this one day as this seems inefficient
         # final_valve_on_time = pass_valve_off_time[i] - trial_duration[i] - 1
         # final_valve_on_time_msec = final_valve_on_time / 1000
 
@@ -281,8 +289,10 @@ def main():
         depassivation_aucs, depassivation_time_delays = get_depassivation_rate(time_stamp_array, normalized_data,
                                                                                passivation_end_index, cutoff_percentages)
         # Get the depassivation areas and time delays for all the cutoff values
-
         ax.plot(time_stamp_array, normalized_data)
+        x_start = time_stamp_array[passivation_start_index]
+        x_end = time_stamp_array[passivation_end_index]
+
         # Plot the traces on top of each other
 
         result = [odor_name[i], odor_concentration[i], tube_length[i], diluter_flowrate[i], carrier_flowrate[i],
@@ -298,9 +308,13 @@ def main():
             result.extend('6')
             data_type_6.append(result)
         elif i in type_7_trials:
+            data = normalized_data[passivation_end_index+75:passivation_end_index+20000]
+            plot_type_7.append(data)
             result.extend('7')
             data_type_7.append(result)
         elif i in type_8_trials:
+            data = normalized_data[passivation_end_index:passivation_end_index+20000]
+            plot_type_8.append(data)
             result.extend('8')
             data_type_8.append(result)
 
@@ -315,10 +329,20 @@ def main():
     h5_file.close()
     save_data(data, file_folder, file_stem, fig, cutoff_percentages)
     # Output the data and the figure
+    plot_type_7 = np.mean(plot_type_7, axis=0)[:5000]
+    plot_type_8 = np.mean(plot_type_8, axis=0)[:5000]
 
+    intersect = get_intersection(plot_type_7, plot_type_8)
+
+    fig1, ax1 = plt.subplots()
+    ax1.plot(np.arange(len(plot_type_7)), plot_type_7)
+    ax1.plot(np.arange(len(plot_type_8)), plot_type_8, color='r')
+
+    if len(intersect) < 2:
+        ax1.axvline(intersect, color='k')
+    fig1.show()
     fig.show()
     # Display the figure
-
 
 if __name__ == '__main__':
     main()

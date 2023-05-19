@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import DewanPID_Utils
+import Dewan_Contamination_Utils
 from Dewan_Contamination_Utils import normalize_data, baseline_shift, smooth_data, save_data, get_non_odor_trials, \
     get_passivation_rate, get_depassivation_rate, combine_indexes, get_intersection
 
@@ -19,16 +20,16 @@ def main():
     bad_trials = [13, 30, 31]
     # # # Configurables # # #
 
-    file_path, file_stem, file_folder = DewanPID_Utils.get_file()
+    file_path, file_stem, file_folder = DewanPID_Utils.get_file('R:/PID_CF/Contamination/RAW Files/odorContaminationSLimoneneCONCSeries_sess1_D2023_5_17T15_2_52.h5')
     h5_file = DewanPID_Utils.open_h5_file(file_path)
     # Open our data file
 
     data_type_6 = []
-    data_type_7 = []
-    data_type_8 = []
+    type_7_results = []
+    type_8_results = []
     # Empty list for our trial data
-    plot_type_7 = []
-    plot_type_8 = []
+    type_7_data = []
+    type_8_data = []
 
 
     trials = h5_file['/Trials']
@@ -55,6 +56,8 @@ def main():
     pass_valve_off_time = trials['PassOffTime'][good_trials]
     pass_valve_on_time = trials['PassOnTime'][good_trials]
     trial_duration = trials['trialdur'][good_trials]
+    odor_concentration = odor_concentration[good_trials]
+
     # ^^^ Get all data out
 
     number_of_trials = len(good_trials)
@@ -132,39 +135,73 @@ def main():
             result.extend('6')
             data_type_6.append(result)
         elif i in type_7_trials:
-            data = normalized_data[passivation_end_index+75:passivation_end_index+20000]
-            plot_type_7.append(data)
+            type_7_data.append(normalized_data)
+
             result.extend('7')
-            data_type_7.append(result)
+            type_7_results.append(result)
         elif i in type_8_trials:
-            data = normalized_data[passivation_end_index:passivation_end_index+20000]
-            plot_type_8.append(data)
+            type_8_data.append(normalized_data)
+
             result.extend('8')
-            data_type_8.append(result)
+            type_8_results.append(result)
 
         # Add our data for this trial to the complete list of data for export
-    data = []
+    data_to_save = []
     for each in data_type_6:
-        data.append(each)
-    for each in data_type_7:
-        data.append(each)
-    for each in data_type_8:
-        data.append(each)
+        data_to_save.append(each)
+    for each in type_7_results:
+        data_to_save.append(each)
+    for each in type_8_results:
+        data_to_save.append(each)
+
     h5_file.close()
-    save_data(data, file_folder, file_stem, fig, cutoff_percentages)
+    save_data(data_to_save, file_folder, file_stem, fig, cutoff_percentages)
     # Output the data and the figure
-    plot_type_7 = np.mean(plot_type_7, axis=0)[:5000]
-    plot_type_8 = np.mean(plot_type_8, axis=0)[:5000]
+    type_7_data_max = np.min([len(each) for each in type_7_data])
+    type_8_data_max = np.min([len(each) for each in type_8_data])
+    max_length = min(type_7_data_max, type_8_data_max)
+    type_7_data = [each[:max_length-75] for each in type_7_data]
+    type_8_data = [each[75:max_length] for each in type_8_data]
+    type_7_data = np.array(type_7_data)
+    type_8_data = np.array(type_8_data)
+    time_stamp_array = (np.arange(-1000, max_length - 1000)/1000)[:-75]
 
-    intersect = get_intersection(plot_type_7, plot_type_8)
 
-    fig1, ax1 = plt.subplots()
-    ax1.plot(np.arange(len(plot_type_7)), plot_type_7)
-    ax1.plot(np.arange(len(plot_type_8)), plot_type_8, color='r')
+    unique_concentrations, type_7_trial_pairs, type_8_trial_pairs =\
+        Dewan_Contamination_Utils.get_concentration_type_pairs(odor_concentration, type_7_trials, type_8_trials)
 
-    if len(intersect) < 2:
-        ax1.axvline(intersect, color='k')
-    fig1.show()
+    print(len(type_7_data))
+    print(type_7_trial_pairs)
+
+
+    allFig, allAx = plt.subplots()
+
+    for i, each in enumerate(unique_concentrations):
+        plot, axis = plt.subplots()
+        concentration_type_7_trials = type_7_trial_pairs[i]
+        concentration_type_8_trials = type_8_trial_pairs[i]
+
+        type_7_data_average = np.mean(type_7_data[concentration_type_7_trials], axis=0)
+        type_8_data_average = np.mean(type_8_data[concentration_type_8_trials], axis=0)
+        axis.plot(time_stamp_array, type_7_data_average, color='b')
+        axis.plot(time_stamp_array, type_8_data_average, color='r')
+
+        allAx.plot(time_stamp_array, type_7_data_average, color='b')
+        allAx.plot(time_stamp_array, type_8_data_average, color='r')
+
+        plot.show()
+
+
+    allFig.show()
+
+    # type_7_data = np.mean(type_7_data, axis=0)[:-75]
+    # type_8_data = np.mean(type_8_data, axis=0)[75:]
+    #
+    #
+    # fig1, ax1 = plt.subplots()
+    # ax1.plot(time_stamp_array, type_7_data, color='b')
+    # ax1.plot(time_stamp_array, type_8_data, color='r')
+    # fig1.show()
     fig.show()
     # Display the figure
 

@@ -181,3 +181,15 @@ def combine_indexes(type_6, type_7, type_8, odor_trials, good_conc, good_tube):
 def get_intersection(curve_1, curve_2):
     intersects = np.where(np.isclose(curve_1, curve_2, rtol=1e-3, atol=1e-3))[0]
     return intersects
+
+
+def get_concentration_type_pairs(odor_concentration, type_7_trials, type_8_trials):
+    unique_concentrations = np.unique(odor_concentration)
+    type_7_concentration_trials = []
+    type_8_concentration_trials = []
+    for each in unique_concentrations:
+        type_7_concentration_trials.append(np.where(each == odor_concentration[type_7_trials])[0])
+        type_8_concentration_trials.append(np.where(each == odor_concentration[type_8_trials])[0])
+
+    return unique_concentrations, type_7_concentration_trials, type_8_concentration_trials
+

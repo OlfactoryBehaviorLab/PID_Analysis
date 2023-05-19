@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import DewanPID_Utils
+import Dewan_Contamination_Utils
 from Dewan_Contamination_Utils import normalize_data, baseline_shift, smooth_data, save_data, get_non_odor_trials, \
     get_passivation_rate, get_depassivation_rate, combine_indexes, get_intersection
 
@@ -19,7 +20,7 @@ def main():
     bad_trials = [13, 30, 31]
     # # # Configurables # # #
 
-    file_path, file_stem, file_folder = DewanPID_Utils.get_file()
+    file_path, file_stem, file_folder = DewanPID_Utils.get_file('R:/PID_CF/Contamination/RAW Files/odorContaminationSLimoneneCONCSeries_sess1_D2023_5_17T15_2_52.h5')
     h5_file = DewanPID_Utils.open_h5_file(file_path)
     # Open our data file
 
@@ -61,50 +62,56 @@ def main():
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
 
-    for i in range(number_of_trials):  # Loop through all of our trials
-        if i in bad_trials:  # Provide a way to skip corrupted trials
-            continue
+    unique_conc, type_7_trial_per_concentration, type_8_trial_per_concentration = \
+        Dewan_Contamination_Utils.get_trial_concentration_pairs(odor_concentration, type_7_trials, type_8_trials)
 
 
-        trial_number = good_trials[i]
-        trial_name = trial_names[trial_number]
-        event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
-        # Get sniff data out of H5 File; this contains our actual PID measurement
-        sniff_samples = event_data['sniff_samples']
-        packet_sent_time = event_data['packet_sent_time']
-        sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
-                                                                             sniff_samples, packet_sent_time)
-        # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
-        # Probably should change this one day as this seems inefficient
-        # final_valve_on_time = pass_valve_off_time[i] - trial_duration[i] - 1
-        # final_valve_on_time_msec = final_valve_on_time / 1000
+    for i, current_concentration in enumerate(unique_conc):  # Loop through all of our trials
 
-        passivation_start_time = pass_valve_on_time[i]  # When passivation starts in msec
-        passivation_stop_time = pass_valve_off_time[i]  # When passivation ends in msec
-        TOI_start = passivation_start_time - (sec_before * 1000)
-        TOI_end = passivation_stop_time + (sec_after * 1000)
-        # We don't want all the data, so cut it before and after the passivation times
+        for trial in type_7_trial_per_concentration[i]:
+            if i in bad_trials:  # Provide a way to skip corrupted trials
+                continue
 
-        roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
-        # Get the ROI from the time_stamp_array in msecs
-        # Get all the data between our cutoff values
-        sniff_data_array = sniff_data_array[roi_index]
-        time_stamp_array = time_stamp_array[roi_index]
-        passivation_start_index = np.where(passivation_start_time == time_stamp_array)[0][0]
-        passivation_end_index = np.where(passivation_stop_time == time_stamp_array)[0][0]
-        # Get indexes for the start/stop time before it's converted to msec
-        time_stamp_array = (time_stamp_array - passivation_start_time) / 1000
-        # Convert time_stamp_array to seconds for plotting
 
-        smoothed_data = smooth_data(sniff_data_array)  # Run a moving window average
+            trial_number = good_trials[i]
+            trial_name = trial_names[trial_number]
+            event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
+            # Get sniff data out of H5 File; this contains our actual PID measurement
+            sniff_samples = event_data['sniff_samples']
+            packet_sent_time = event_data['packet_sent_time']
+            sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
+                                                                                 sniff_samples, packet_sent_time)
+            # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
+            # Probably should change this one day as this seems inefficient
+            # final_valve_on_time = pass_valve_off_time[i] - trial_duration[i] - 1
+            # final_valve_on_time_msec = final_valve_on_time / 1000
 
-        baseline_shifted_data = baseline_shift(smoothed_data)  # Do a baseline shift so the lowest value is 0
+            passivation_start_time = pass_valve_on_time[i]  # When passivation starts in msec
+            passivation_stop_time = pass_valve_off_time[i]  # When passivation ends in msec
+            TOI_start = passivation_start_time - (sec_before * 1000)
+            TOI_end = passivation_stop_time + (sec_after * 1000)
+            # We don't want all the data, so cut it before and after the passivation times
 
-        normalized_data = normalize_data(baseline_shifted_data, sniff_data_array, passivation_end_index)
-        # Normalize all the data between 0-100
-        # troughless_data, passivation_start = linear_extrapolation(normalized_data)
-        # Remove the weird pressure spike by identifying the troughs and running linear interpolation
-        # Might not need this anymore 5/17/23 ACP
+            roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
+            # Get the ROI from the time_stamp_array in msecs
+            # Get all the data between our cutoff values
+            sniff_data_array = sniff_data_array[roi_index]
+            time_stamp_array = time_stamp_array[roi_index]
+            passivation_start_index = np.where(passivation_start_time == time_stamp_array)[0][0]
+            passivation_end_index = np.where(passivation_stop_time == time_stamp_array)[0][0]
+            # Get indexes for the start/stop time before it's converted to msec
+            time_stamp_array = (time_stamp_array - passivation_start_time) / 1000
+            # Convert time_stamp_array to seconds for plotting
+
+            smoothed_data = smooth_data(sniff_data_array)  # Run a moving window average
+
+            baseline_shifted_data = baseline_shift(smoothed_data)  # Do a baseline shift so the lowest value is 0
+
+            normalized_data = normalize_data(baseline_shifted_data, sniff_data_array, passivation_end_index)
+            # Normalize all the data between 0-100
+            # troughless_data, passivation_start = linear_extrapolation(normalized_data)
+            # Remove the weird pressure spike by identifying the troughs and running linear interpolation
+            # Might not need this anymore 5/17/23 ACP
 
         passivation_auc, passivation_time_delay = get_passivation_rate(time_stamp_array, normalized_data,
                                                                        passivation_start_index, passivation_end_index)

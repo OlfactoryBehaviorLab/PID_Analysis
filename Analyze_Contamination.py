@@ -1,10 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-import DewanPID_Utils
-import Dewan_Contamination_Utils
+import Dewan_PID_Utils
 from Dewan_Contamination_Utils import normalize_data, baseline_shift, smooth_data, save_data, get_non_odor_trials, \
-    get_passivation_rate, get_depassivation_rate, combine_indexes, get_intersection
+    get_passivation_rate, get_depassivation_rate, combine_indexes, get_intersection, get_concentration_type_pairs
 
 
 ## TODO Make each odor-concentration pair the same color
@@ -20,8 +19,9 @@ def main():
     bad_trials = [13, 30, 31]
     # # # Configurables # # #
 
-    file_path, file_stem, file_folder = DewanPID_Utils.get_file('R:/PID_CF/Contamination/RAW Files/odorContaminationSLimoneneCONCSeries_sess1_D2023_5_17T15_2_52.h5')
-    h5_file = DewanPID_Utils.open_h5_file(file_path)
+    file_path, file_stem, file_folder = Dewan_PID_Utils.get_file('C:/PythonProjects/Contamination/'
+                                                    'odorContaminationSLimoneneCONCSeries_sess1_D2023_5_17T15_2_52.h5')
+    h5_file = Dewan_PID_Utils.open_h5_file(file_path)
     # Open our data file
 
     data_type_6 = []
@@ -31,7 +31,6 @@ def main():
     type_7_data = []
     type_8_data = []
 
-
     trials = h5_file['/Trials']
     trial_names = list(h5_file.keys())
     type_6_trials = np.where(trials['trialtype'] == 6)[0]
@@ -39,7 +38,7 @@ def main():
     type_8_trials = np.where(trials['trialtype'] == 8)[0]
 
     # We are only interested when trialtype is six. The first trial is usually a 0/1
-    odor_name = DewanPID_Utils.decode_list(trials['odor'])
+    odor_name = Dewan_PID_Utils.decode_list(trials['odor'])
     # odor_names are stored as bytes and need to be decoded using utf-8
     odor_indexes = get_non_odor_trials(odor_name)  # Remove Blanks and MO if present
     odor_concentration = trials['odorconc']
@@ -48,7 +47,8 @@ def main():
     tube_length = trials['Tube']
     good_tubes = np.where(tube_length < max_tube_length)[0]
     # Filter out tube lengths over a certain length
-    good_trials = combine_indexes(type_6_trials, type_7_trials, type_8_trials, odor_indexes, good_concentrations, good_tubes)
+    good_trials = combine_indexes(type_6_trials, type_7_trials, type_8_trials, odor_indexes, good_concentrations,
+                                  good_tubes)
     # Find the common items between all our cutoffs/filters
     odor_name = odor_name[good_trials]
     carrier_flowrate = trials['Carrier_flowrate'][good_trials]
@@ -56,7 +56,9 @@ def main():
     pass_valve_off_time = trials['PassOffTime'][good_trials]
     pass_valve_on_time = trials['PassOnTime'][good_trials]
     trial_duration = trials['trialdur'][good_trials]
-    odor_concentration = odor_concentration[good_trials]
+    print(len(odor_concentration))
+    #odor_concentration = odor_concentration[good_trials]
+    print(len(odor_concentration))
 
     # ^^^ Get all data out
 
@@ -68,15 +70,14 @@ def main():
         if i in bad_trials:  # Provide a way to skip corrupted trials
             continue
 
-
         trial_number = good_trials[i]
         trial_name = trial_names[trial_number]
-        event_data, sniff_data = DewanPID_Utils.get_sniff_data(h5_file, trial_name)
+        event_data, sniff_data = Dewan_PID_Utils.get_sniff_data(h5_file, trial_name)
         # Get sniff data out of H5 File; this contains our actual PID measurement
         sniff_samples = event_data['sniff_samples']
         packet_sent_time = event_data['packet_sent_time']
-        sniff_data_array, time_stamp_array = DewanPID_Utils.condense_packets(sniff_data,
-                                                                             sniff_samples, packet_sent_time)
+        sniff_data_array, time_stamp_array = Dewan_PID_Utils.condense_packets(sniff_data,
+                                                                              sniff_samples, packet_sent_time)
         # The packets come out in chunks, we want to linearize them into a long list to pick and choose from
         # Probably should change this one day as this seems inefficient
         # final_valve_on_time = pass_valve_off_time[i] - trial_duration[i] - 1
@@ -88,7 +89,7 @@ def main():
         TOI_end = passivation_stop_time + (sec_after * 1000)
         # We don't want all the data, so cut it before and after the passivation times
 
-        roi_index = DewanPID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
+        roi_index = Dewan_PID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
         # Get the ROI from the time_stamp_array in msecs
         # Get all the data between our cutoff values
         sniff_data_array = sniff_data_array[roi_index]
@@ -114,7 +115,8 @@ def main():
         # Get passivation areas and time delays for the rising curve
 
         depassivation_aucs, depassivation_time_delays = get_depassivation_rate(time_stamp_array, normalized_data,
-                                                                               passivation_end_index, cutoff_percentages)
+                                                                               passivation_end_index,
+                                                                               cutoff_percentages)
         # Get the depassivation areas and time delays for all the cutoff values
         ax.plot(time_stamp_array, normalized_data)
         x_start = time_stamp_array[passivation_start_index]
@@ -136,12 +138,10 @@ def main():
             data_type_6.append(result)
         elif i in type_7_trials:
             type_7_data.append(normalized_data)
-
             result.extend('7')
             type_7_results.append(result)
         elif i in type_8_trials:
             type_8_data.append(normalized_data)
-
             result.extend('8')
             type_8_results.append(result)
 
@@ -160,27 +160,25 @@ def main():
     type_7_data_max = np.min([len(each) for each in type_7_data])
     type_8_data_max = np.min([len(each) for each in type_8_data])
     max_length = min(type_7_data_max, type_8_data_max)
-    type_7_data = [each[:max_length-75] for each in type_7_data]
+    type_7_data = [each[:max_length - 75] for each in type_7_data]
     type_8_data = [each[75:max_length] for each in type_8_data]
     type_7_data = np.array(type_7_data)
     type_8_data = np.array(type_8_data)
-    time_stamp_array = (np.arange(-1000, max_length - 1000)/1000)[:-75]
-
-
-    unique_concentrations, type_7_trial_pairs, type_8_trial_pairs =\
-        Dewan_Contamination_Utils.get_concentration_type_pairs(odor_concentration, type_7_trials, type_8_trials)
-
-    print(len(type_7_data))
-    print(type_7_trial_pairs)
+    time_stamp_array = (np.arange(-1000, max_length - 1000) / 1000)[:-75]
+    unique_concentrations, type_7_trial_pairs, type_8_trial_pairs = get_concentration_type_pairs(odor_concentration,
+                                                                                                 type_7_trials,
+                                                                                                 type_8_trials)
 
 
     allFig, allAx = plt.subplots()
 
     for i, each in enumerate(unique_concentrations):
         plot, axis = plt.subplots()
+        plot.suptitle(f'Concentration: {each}')
         concentration_type_7_trials = type_7_trial_pairs[i]
         concentration_type_8_trials = type_8_trial_pairs[i]
-
+        print(concentration_type_7_trials)
+        print(len(type_7_data))
         type_7_data_average = np.mean(type_7_data[concentration_type_7_trials], axis=0)
         type_8_data_average = np.mean(type_8_data[concentration_type_8_trials], axis=0)
         axis.plot(time_stamp_array, type_7_data_average, color='b')
@@ -190,7 +188,6 @@ def main():
         allAx.plot(time_stamp_array, type_8_data_average, color='r')
 
         plot.show()
-
 
     allFig.show()
 
@@ -204,6 +201,7 @@ def main():
     # fig1.show()
     fig.show()
     # Display the figure
+
 
 if __name__ == '__main__':
     main()

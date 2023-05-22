@@ -5,7 +5,7 @@ import pandas as pd
 from scipy import signal
 from scipy.ndimage import uniform_filter1d
 
-import DewanPID_Utils
+import Dewan_PID_Utils
 
 BIT_CONVERSION_FACTOR = 4.8828
 
@@ -45,7 +45,7 @@ def smooth_data(sniff_data, window_size=15, mode='reflect'):
 def get_troughs(normalized_data):
     troughs = signal.argrelextrema(normalized_data[1000:1300], np.less_equal, order=5)[0]
     # Find low points throughout the data and return the indexes
-    good_indexes = DewanPID_Utils.get_roi(10, 300, troughs)
+    good_indexes = Dewan_PID_Utils.get_roi(10, 300, troughs)
     # Sometimes it erroneously makes the trough too early,
     # This makes sure it is always in the middle of the
     # passivation Time; sometimes the curves are very stretched, hence checking out to 300
@@ -155,7 +155,7 @@ def get_depassivation_rate(time_stamp_array, normalized_data, passivation_off_in
     time_diffs = []
 
     for each in cutoff_values:
-        roi = DewanPID_Utils.get_roi(each, max_value, normalized_data)
+        roi = Dewan_PID_Utils.get_roi(each, max_value, normalized_data)
         time_diff = roi[-1] - passivation_off_index
         # Get the roi for each cutoff
         # The time difference is where the roi ends - where the valve switches off

@@ -18,11 +18,12 @@ def main():
     sec_before = 1
     sec_after = 30
     cutoff_percentages = [5, 10, 25, 50, 75, 95]
-    bad_trials = [13, 30, 31]
+    bad_trials = [14]
+    # 14 for butyl acetate
+    # S Limonene 13, 30, 31
     # # # Configurables # # #
 
-    file_path, file_stem, file_folder = Dewan_PID_Utils.get_file('C:/PythonProjects/Contamination/'
-                                                                 'odorContaminationSLimoneneCONCSeries_sess1_D2023_5_17T15_2_52.h5')
+    file_path, file_stem, file_folder = Dewan_PID_Utils.get_file()
     h5_file = Dewan_PID_Utils.open_h5_file(file_path)
     # Open our data file
 
@@ -51,9 +52,13 @@ def main():
     # Filter out tube lengths over a certain length
     good_trials = combine_indexes(type_6_trials, type_7_trials, type_8_trials, odor_indexes, good_concentrations,
                                   good_tubes)
-    type_6_trials = [each for each in type_6_trials if each in good_trials]
-    type_7_trials = [each for each in type_7_trials if each in good_trials]
-    type_8_trials = [each for each in type_8_trials if each in good_trials]
+    # type_6_trials = [each for each in type_6_trials if each in good_trials]
+    # type_7_trials = [each for each in type_7_trials if each in good_trials]
+    # type_8_trials = [each for each in type_8_trials if each in good_trials]
+    # type_6_trials = [each for each in type_6_trials if each not in bad_trials]
+    # type_7_trials = [each for each in type_7_trials if each not in bad_trials]
+    # type_8_trials = [each for each in type_8_trials if each not in bad_trials]
+
     # Make sure anything that was filtered out by good_trials is reflected in the trial lists
 
     # Find the common items between all our cutoffs/filters
@@ -74,6 +79,10 @@ def main():
     number_of_trials = len(good_trials)
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
+    new_type_7_trial = []
+    new_type_8_trial = []
+    type_8_pass_end = []
+    type_7_pass_end = []
 
     for i, trial in enumerate(good_trials):  # Loop through all of our trials
         if trial in bad_trials:  # Provide a way to skip corrupted trials
@@ -105,7 +114,6 @@ def main():
         time_stamp_array = time_stamp_array[roi_index]
         passivation_start_index = np.where(passivation_start_time == time_stamp_array)[0][0]
         passivation_end_index = np.where(passivation_stop_time == time_stamp_array)[0][0]
-        passivation_end_index_list.append(passivation_end_index)
         # Get indexes for the start/stop time before it's converted to msec
         time_stamp_array = (time_stamp_array - passivation_start_time) / 1000
         # Convert time_stamp_array to seconds for plotting
@@ -142,33 +150,37 @@ def main():
             result.append(depassivation_aucs[z])
             result.append(each)
         # The depassivation values come out as a list, so unpack them and add them to the list
-
         if i in type_6_trials:
             result.extend('6')
             type_6_results.append(result)
         elif i in type_7_trials:
+            passivation_end_index_list.append(passivation_end_index)
             all_raw_data.append(normalized_data)
+            new_type_7_trial.append(len(all_raw_data)-1)
             result.extend('7')
             type_7_results.append(result)
         elif i in type_8_trials:
+            passivation_end_index_list.append(passivation_end_index)
             all_raw_data.append(normalized_data)
+            new_type_8_trial.append(len(all_raw_data)-1)
             result.extend('8')
             type_8_results.append(result)
 
+
         # Add our data for this trial to the complete list of data for export
-    data_to_save = []
-    for each in type_6_results:
-        data_to_save.append(each)
-    for each in type_7_results:
-        data_to_save.append(each)
-    for each in type_8_results:
-        data_to_save.append(each)
+    # data_to_save = []
+    # for each in type_6_results:
+    #     data_to_save.append(each)
+    # for each in type_7_results:
+    #     data_to_save.append(each)
+    # for each in type_8_results:
+    #     data_to_save.append(each)
 
     h5_file.close()
-    fig.show()
+    # fig.show()
     # Display the figure
 
-    save_data(data_to_save, file_folder, file_stem, fig, cutoff_percentages)
+    # save_data(data_to_save, file_folder, file_stem, fig, cutoff_percentages)
     # Output the data and the figure
 
     # # # New Functionality with Concentration Averaging # # #
@@ -178,6 +190,7 @@ def main():
     for j, each in enumerate(all_raw_data):
         cutoff = passivation_end_index_list[j]
         temp.append(each[cutoff:])
+
     all_raw_data = temp
     # Cuts each row to its depassivation end time
     raw_data_max = np.min([len(each) for each in all_raw_data])
@@ -191,9 +204,16 @@ def main():
     truncated_raw_data = np.array(truncated_raw_data)
 
     unique_concentrations, type_7_trial_pairs, type_8_trial_pairs = get_concentration_type_pairs(odor_concentration,
-                                                                                                 type_7_trials,
-                                                                                                 type_8_trials)
+                                                                                                 new_type_7_trial,
+                                                                                                 new_type_8_trial)
     # We want to get the indexes for each trial type for each concentration
+    for i in range(len(unique_concentrations)):
+        fig2, ax2 = plt.subplots()
+        for each in type_7_trial_pairs[i]:
+            ax2.plot(time_stamp_array, truncated_raw_data[each][:-75], color='b')
+        for each in type_8_trial_pairs[i]:
+            ax2.plot(time_stamp_array, truncated_raw_data[each][75:], color='r')
+        fig2.show()
 
     allFig, allAx = plt.subplots()
     allFig.suptitle('All Concentrations')
@@ -209,11 +229,9 @@ def main():
         plot.suptitle(f'Concentration: {each}')
         concentration_type_7_trials = type_7_trial_pairs[i]
         concentration_type_8_trials = type_8_trial_pairs[i]
-
-        type_7_data_average = np.mean(truncated_raw_data[concentration_type_7_trials], axis=0)[:-75]
-        type_8_data_average = np.mean(truncated_raw_data[concentration_type_8_trials], axis=0)[75:]
+        type_7_data_average = np.mean(truncated_raw_data[concentration_type_7_trials], axis=0)[75:]
+        type_8_data_average = np.mean(truncated_raw_data[concentration_type_8_trials], axis=0)[:-75]
         # We need to shift the data by ~75 ms, so they overlap. Dunno why.... Timestamp shifted above
-
         control_aucs, control_time_delays = get_depassivation_rate(time_stamp_array,
                                                                    type_7_data_average, 0,
                                                                    cutoff_percentages)

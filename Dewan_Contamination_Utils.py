@@ -187,9 +187,22 @@ def get_concentration_type_pairs(odor_concentration, type_7_trials, type_8_trial
     unique_concentrations = np.unique(odor_concentration)
     type_7_concentration_trials = []
     type_8_concentration_trials = []
+    # for each in unique_concentrations:
+    #     type_7_concentration_trials.append(np.where(each == odor_concentration[type_7_trials])[0])
+    #     type_8_concentration_trials.append(np.where(each == odor_concentration[type_8_trials])[0])
+
     for each in unique_concentrations:
-        type_7_concentration_trials.append(np.where(each == odor_concentration[type_7_trials])[0])
-        type_8_concentration_trials.append(np.where(each == odor_concentration[type_8_trials])[0])
+        t7_temp = []
+        t8_temp = []
+        for t7 in type_7_trials:
+            if odor_concentration[t7] == each:
+                t7_temp.append(t7)
+        for t8 in type_8_trials:
+            if odor_concentration[t8] == each:
+                t8_temp.append(t8)
+
+        type_7_concentration_trials.append(t7_temp)
+        type_8_concentration_trials.append(t8_temp)
 
     return unique_concentrations, type_7_concentration_trials, type_8_concentration_trials
 
@@ -205,10 +218,10 @@ def parse_concentration_data(control_AUC_array, control_time_delay_array, test_A
         test_time_vals = test_time_delay_array[i]
 
         auc_ratio = np.divide(control_auc_vals, test_AUC_vals)
-        auc_difference = np.subtract(control_auc_vals, test_AUC_vals)
+        auc_difference = np.subtract(test_AUC_vals, control_auc_vals)
 
         time_ratio = np.divide(control_time_vals, test_time_vals)
-        time_difference = np.subtract(control_time_vals, test_time_vals)
+        time_difference = np.subtract(test_time_vals, control_time_vals)
 
         auc_ratios.append(auc_ratio)
         auc_differences.append(auc_difference)
@@ -260,7 +273,6 @@ def save_concentration_data(file_path, file_stem, odor_name, tube_length, unique
         data.append(concentration_result)
 
     data = pd.DataFrame(data, columns=header)
-    print(file_path, file_stem)
     csv_path = os.path.join(file_path, f'{file_stem}-CONCENTRATION.csv')
     # Generate file paths for image and csv
     data.to_csv(csv_path, index=False)

@@ -80,7 +80,7 @@ def bits_2_volts(bit_data, gain, carrier):
     return bits_to_volt
 
 
-def generate_header(cutoff_percentages):
+def generate_standard_header(cutoff_percentages):
     column_labels = ['Odor Name', 'Odor Concentration', 'Tube Length', 'Dilutor', 'Carrier', 'Passivation AUC',
                      'Passivation Time']
     # List of labels that are not repeated
@@ -96,7 +96,7 @@ def generate_header(cutoff_percentages):
 
 
 def save_data(data, file_path, file_stem, fig, cutoff_percentages):
-    column_labels = generate_header(cutoff_percentages)
+    column_labels = generate_standard_header(cutoff_percentages)
     # Generate headers for dataframe
     output = pd.DataFrame(data, columns=column_labels)
     # Put data into dataframe
@@ -178,9 +178,9 @@ def combine_indexes(type_6, type_7, type_8, odor_trials, good_conc, good_tube):
     return temp_array_1
 
 
-def get_intersection(curve_1, curve_2):
-    intersects = np.where(np.isclose(curve_1, curve_2, rtol=1e-3, atol=1e-3))[0]
-    return intersects
+# def get_intersection(curve_1, curve_2):
+#     intersects = np.where(np.isclose(curve_1, curve_2, rtol=1e-3, atol=1e-3))[0]
+#     return intersects
 
 
 def get_concentration_type_pairs(odor_concentration, type_7_trials, type_8_trials):
@@ -192,4 +192,78 @@ def get_concentration_type_pairs(odor_concentration, type_7_trials, type_8_trial
         type_8_concentration_trials.append(np.where(each == odor_concentration[type_8_trials])[0])
 
     return unique_concentrations, type_7_concentration_trials, type_8_concentration_trials
+
+
+def parse_concentration_data(control_AUC_array, control_time_delay_array, test_AUC_array, test_time_delay_array):
+    auc_ratios = []
+    auc_differences = []
+    time_ratios = []
+    time_differences = []
+    for i, control_auc_vals in enumerate(control_AUC_array):
+        control_time_vals = control_time_delay_array[i]
+        test_AUC_vals = test_AUC_array[i]
+        test_time_vals = test_time_delay_array[i]
+
+        auc_ratio = np.divide(control_auc_vals, test_AUC_vals)
+        auc_difference = np.subtract(control_auc_vals, test_AUC_vals)
+
+        time_ratio = np.divide(control_time_vals, test_time_vals)
+        time_difference = np.subtract(control_time_vals, test_time_vals)
+
+        auc_ratios.append(auc_ratio)
+        auc_differences.append(auc_difference)
+        time_ratios.append(time_ratio)
+        time_differences.append(time_difference)
+
+    return auc_ratios, auc_differences, time_ratios, time_differences
+
+
+def generate_concentration_header(odor, tube_length, cutoff_percentages):
+    header = ['Concentration']
+
+    for each in cutoff_percentages:
+        auc_ratio = f'AUC Ratio({each})'
+        auc_difference = f'AUC Difference({each})'
+        time_ratio = f'Time Ratio({each})'
+        time_difference = f'Time Difference({each})'
+
+        header.append(auc_ratio)
+        header.append(auc_difference)
+        header.append(time_ratio)
+        header.append(time_difference)
+
+    header.append(f'Odor: {odor}')
+    header.append(f'Tube Length {tube_length}mm')
+
+    return header
+
+
+def save_concentration_data(file_path, file_stem, odor_name, tube_length, unique_concentrations, cutoffs, auc_ratios, auc_differences,
+                            time_ratios, time_differences):
+    header = generate_concentration_header(odor_name, tube_length, cutoffs)
+    data = []
+
+    for i, each in enumerate(unique_concentrations):
+        # Loop through all the concentrations, each row in the data is for a specific concentration
+        concentration_result = [each]
+        for j, auc_ratio in enumerate(auc_ratios[i]):
+            # Loop through the items in each row, each item is for a specific cutoff
+            # We rotate through the cutoffs since that is how the header is arranged
+            concentration_result.append(auc_ratio)
+            concentration_result.append(auc_differences[i][j])
+            concentration_result.append(time_ratios[i][j])
+            concentration_result.append(time_differences[i][j])
+
+        concentration_result.append("")
+        concentration_result.append("")
+
+        data.append(concentration_result)
+
+    data = pd.DataFrame(data, columns=header)
+    print(file_path, file_stem)
+    csv_path = os.path.join(file_path, f'{file_stem}-CONCENTRATION.csv')
+    # Generate file paths for image and csv
+    data.to_csv(csv_path, index=False)
+
+
 

@@ -1,9 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import Dewan_Contamination_Utils
 import Dewan_PID_Utils
 from Dewan_Contamination_Utils import normalize_data, baseline_shift, smooth_data, save_data, get_non_odor_trials, \
-    get_passivation_rate, get_depassivation_rate, combine_indexes, get_intersection, get_concentration_type_pairs
+    get_passivation_rate, get_depassivation_rate, combine_indexes, get_concentration_type_pairs, \
+    parse_concentration_data
 
 
 ## TODO Make each odor-concentration pair the same color
@@ -20,23 +22,23 @@ def main():
     # # # Configurables # # #
 
     file_path, file_stem, file_folder = Dewan_PID_Utils.get_file('C:/PythonProjects/Contamination/'
-                                                    'odorContaminationSLimoneneCONCSeries_sess1_D2023_5_17T15_2_52.h5')
+                                                                 'odorContaminationSLimoneneCONCSeries_sess1_D2023_5_17T15_2_52.h5')
     h5_file = Dewan_PID_Utils.open_h5_file(file_path)
     # Open our data file
 
-    data_type_6 = []
+    type_6_results = []
     type_7_results = []
     type_8_results = []
     # Empty list for our trial data
-    type_7_data = []
-    type_8_data = []
+
+    all_raw_data = []
+    passivation_end_index_list = []
 
     trials = h5_file['/Trials']
     trial_names = list(h5_file.keys())
     type_6_trials = np.where(trials['trialtype'] == 6)[0]
     type_7_trials = np.where(trials['trialtype'] == 7)[0]
     type_8_trials = np.where(trials['trialtype'] == 8)[0]
-
     # We are only interested when trialtype is six. The first trial is usually a 0/1
     odor_name = Dewan_PID_Utils.decode_list(trials['odor'])
     # odor_names are stored as bytes and need to be decoded using utf-8
@@ -49,16 +51,23 @@ def main():
     # Filter out tube lengths over a certain length
     good_trials = combine_indexes(type_6_trials, type_7_trials, type_8_trials, odor_indexes, good_concentrations,
                                   good_tubes)
+    type_6_trials = [each for each in type_6_trials if each in good_trials]
+    type_7_trials = [each for each in type_7_trials if each in good_trials]
+    type_8_trials = [each for each in type_8_trials if each in good_trials]
+    # Make sure anything that was filtered out by good_trials is reflected in the trial lists
+
     # Find the common items between all our cutoffs/filters
-    odor_name = odor_name[good_trials]
-    carrier_flowrate = trials['Carrier_flowrate'][good_trials]
-    diluter_flowrate = trials['Dilutor_flowrate'][good_trials]
-    pass_valve_off_time = trials['PassOffTime'][good_trials]
-    pass_valve_on_time = trials['PassOnTime'][good_trials]
-    trial_duration = trials['trialdur'][good_trials]
-    print(len(odor_concentration))
-    #odor_concentration = odor_concentration[good_trials]
-    print(len(odor_concentration))
+    # odor_name = odor_name[good_trials]
+    # carrier_flowrate = trials['Carrier_flowrate'][good_trials]
+    # diluter_flowrate = trials['Dilutor_flowrate'][good_trials]
+    # pass_valve_off_time = trials['PassOffTime'][good_trials]
+    # pass_valve_on_time = trials['PassOnTime'][good_trials]
+    # odor_concentration = odor_concentration[good_trials]
+
+    carrier_flowrate = trials['Carrier_flowrate']
+    diluter_flowrate = trials['Dilutor_flowrate']
+    pass_valve_off_time = trials['PassOffTime']
+    pass_valve_on_time = trials['PassOnTime']
 
     # ^^^ Get all data out
 
@@ -66,12 +75,12 @@ def main():
     fig, ax = plt.subplots()
     # Create empty plot to put traces into
 
-    for i in range(number_of_trials):  # Loop through all of our trials
-        if i in bad_trials:  # Provide a way to skip corrupted trials
+    for i, trial in enumerate(good_trials):  # Loop through all of our trials
+        if trial in bad_trials:  # Provide a way to skip corrupted trials
             continue
 
-        trial_number = good_trials[i]
-        trial_name = trial_names[trial_number]
+        # trial_number = good_trials[i]
+        trial_name = trial_names[trial]
         event_data, sniff_data = Dewan_PID_Utils.get_sniff_data(h5_file, trial_name)
         # Get sniff data out of H5 File; this contains our actual PID measurement
         sniff_samples = event_data['sniff_samples']
@@ -83,8 +92,8 @@ def main():
         # final_valve_on_time = pass_valve_off_time[i] - trial_duration[i] - 1
         # final_valve_on_time_msec = final_valve_on_time / 1000
 
-        passivation_start_time = pass_valve_on_time[i]  # When passivation starts in msec
-        passivation_stop_time = pass_valve_off_time[i]  # When passivation ends in msec
+        passivation_start_time = pass_valve_on_time[trial]  # When passivation starts in msec
+        passivation_stop_time = pass_valve_off_time[trial]  # When passivation ends in msec
         TOI_start = passivation_start_time - (sec_before * 1000)
         TOI_end = passivation_stop_time + (sec_after * 1000)
         # We don't want all the data, so cut it before and after the passivation times
@@ -96,6 +105,7 @@ def main():
         time_stamp_array = time_stamp_array[roi_index]
         passivation_start_index = np.where(passivation_start_time == time_stamp_array)[0][0]
         passivation_end_index = np.where(passivation_stop_time == time_stamp_array)[0][0]
+        passivation_end_index_list.append(passivation_end_index)
         # Get indexes for the start/stop time before it's converted to msec
         time_stamp_array = (time_stamp_array - passivation_start_time) / 1000
         # Convert time_stamp_array to seconds for plotting
@@ -135,19 +145,19 @@ def main():
 
         if i in type_6_trials:
             result.extend('6')
-            data_type_6.append(result)
+            type_6_results.append(result)
         elif i in type_7_trials:
-            type_7_data.append(normalized_data)
+            all_raw_data.append(normalized_data)
             result.extend('7')
             type_7_results.append(result)
         elif i in type_8_trials:
-            type_8_data.append(normalized_data)
+            all_raw_data.append(normalized_data)
             result.extend('8')
             type_8_results.append(result)
 
         # Add our data for this trial to the complete list of data for export
     data_to_save = []
-    for each in data_type_6:
+    for each in type_6_results:
         data_to_save.append(each)
     for each in type_7_results:
         data_to_save.append(each)
@@ -155,52 +165,85 @@ def main():
         data_to_save.append(each)
 
     h5_file.close()
+    fig.show()
+    # Display the figure
+
     save_data(data_to_save, file_folder, file_stem, fig, cutoff_percentages)
     # Output the data and the figure
-    type_7_data_max = np.min([len(each) for each in type_7_data])
-    type_8_data_max = np.min([len(each) for each in type_8_data])
-    max_length = min(type_7_data_max, type_8_data_max)
-    type_7_data = [each[:max_length - 75] for each in type_7_data]
-    type_8_data = [each[75:max_length] for each in type_8_data]
-    type_7_data = np.array(type_7_data)
-    type_8_data = np.array(type_8_data)
-    time_stamp_array = (np.arange(-1000, max_length - 1000) / 1000)[:-75]
+
+    # # # New Functionality with Concentration Averaging # # #
+
+    temp = []
+
+    for j, each in enumerate(all_raw_data):
+        cutoff = passivation_end_index_list[j]
+        temp.append(each[cutoff:])
+    all_raw_data = temp
+    # Cuts each row to its depassivation end time
+    raw_data_max = np.min([len(each) for each in all_raw_data])
+    # We need to trim all lists to the shortest time
+    truncated_raw_data = [each[:raw_data_max] for each in all_raw_data]
+    # Shorten all the lists to the minimum and maximum indexes
+    end_timestamp = len(truncated_raw_data[0]) - 75
+    time_stamp_array = (np.arange(end_timestamp) / 1000)
+    # Generate X-values from 0 -> length of the arrays; we start at zero since all data before the
+    # passivation_off_valve is chopped off
+    truncated_raw_data = np.array(truncated_raw_data)
+
     unique_concentrations, type_7_trial_pairs, type_8_trial_pairs = get_concentration_type_pairs(odor_concentration,
                                                                                                  type_7_trials,
                                                                                                  type_8_trials)
-
+    # We want to get the indexes for each trial type for each concentration
 
     allFig, allAx = plt.subplots()
+    allFig.suptitle('All Concentrations')
+
+    control_AUC = []
+    control_time_delay = []
+    test_AUC = []
+    test_time_delay = []
 
     for i, each in enumerate(unique_concentrations):
+        line_types = ['solid', 'dotted', 'dashed', 'dashdot']
         plot, axis = plt.subplots()
         plot.suptitle(f'Concentration: {each}')
         concentration_type_7_trials = type_7_trial_pairs[i]
         concentration_type_8_trials = type_8_trial_pairs[i]
-        print(concentration_type_7_trials)
-        print(len(type_7_data))
-        type_7_data_average = np.mean(type_7_data[concentration_type_7_trials], axis=0)
-        type_8_data_average = np.mean(type_8_data[concentration_type_8_trials], axis=0)
-        axis.plot(time_stamp_array, type_7_data_average, color='b')
-        axis.plot(time_stamp_array, type_8_data_average, color='r')
 
-        allAx.plot(time_stamp_array, type_7_data_average, color='b')
-        allAx.plot(time_stamp_array, type_8_data_average, color='r')
+        type_7_data_average = np.mean(truncated_raw_data[concentration_type_7_trials], axis=0)[:-75]
+        type_8_data_average = np.mean(truncated_raw_data[concentration_type_8_trials], axis=0)[75:]
+        # We need to shift the data by ~75 ms, so they overlap. Dunno why.... Timestamp shifted above
+
+        control_aucs, control_time_delays = get_depassivation_rate(time_stamp_array,
+                                                                   type_7_data_average, 0,
+                                                                   cutoff_percentages)
+
+        test_aucs, test_time_delays = get_depassivation_rate(time_stamp_array,
+                                                             type_8_data_average, 0,
+                                                             cutoff_percentages)
+
+        control_AUC.append(control_aucs)
+        control_time_delay.append(control_time_delays)
+
+        test_AUC.append(test_aucs)
+        test_time_delay.append(test_time_delays)
+
+        axis.plot(time_stamp_array, type_7_data_average, linestyle=line_types[i], color='b')
+        axis.plot(time_stamp_array, type_8_data_average, linestyle=line_types[i], color='r')
+        allAx.plot(time_stamp_array, type_7_data_average, linestyle=line_types[i], color='b')
+        allAx.plot(time_stamp_array, type_8_data_average, linestyle=line_types[i], color='r')
 
         plot.show()
 
-    allFig.show()
+    auc_ratios, auc_differences, time_ratios, time_differences = parse_concentration_data(control_AUC,
+                                                                                          control_time_delay, test_AUC,
+                                                                                          test_time_delay)
 
-    # type_7_data = np.mean(type_7_data, axis=0)[:-75]
-    # type_8_data = np.mean(type_8_data, axis=0)[75:]
-    #
-    #
-    # fig1, ax1 = plt.subplots()
-    # ax1.plot(time_stamp_array, type_7_data, color='b')
-    # ax1.plot(time_stamp_array, type_8_data, color='r')
-    # fig1.show()
-    fig.show()
-    # Display the figure
+    Dewan_Contamination_Utils.save_concentration_data(file_folder, file_stem, odor_name[0], tube_length[0],
+                                                      unique_concentrations, cutoff_percentages, auc_ratios,
+                                                      auc_differences, time_ratios, time_differences)
+
+    allFig.show()
 
 
 if __name__ == '__main__':

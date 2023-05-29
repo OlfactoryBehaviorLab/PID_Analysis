@@ -169,18 +169,13 @@ def get_depassivation_rate(time_stamp_array, normalized_data, passivation_off_in
     return auc_vals, time_diffs
 
 
-def combine_indexes(type_6, type_7, type_8, odor_trials, good_conc, good_tube):
+def combine_indexes(type_6, type_7, odor_trials, good_conc, good_tube):
     good_indexes_1 = np.intersect1d(good_tube, odor_trials)
     good_indexes_2 = np.intersect1d(good_conc, good_indexes_1)
-    good_trials = np.concatenate((type_6, type_7, type_8))
+    good_trials = np.concatenate((type_6, type_7))
     temp_array_1 = np.intersect1d(good_trials, good_indexes_2)
     temp_array_1 = np.sort(temp_array_1)
     return temp_array_1
-
-
-# def get_intersection(curve_1, curve_2):
-#     intersects = np.where(np.isclose(curve_1, curve_2, rtol=1e-3, atol=1e-3))[0]
-#     return intersects
 
 
 def get_concentration_type_pairs(odor_concentration, type_7_trials, type_8_trials):
@@ -278,4 +273,17 @@ def save_concentration_data(file_path, file_stem, odor_name, tube_length, unique
     data.to_csv(csv_path, index=False)
 
 
+def get_on_off_times(trial_data):
+    passivation_on_times = []
+    passivation_off_times = []
+
+    for time in range(1, 31):
+        column_name = str(time)
+        passivation_on_times.append(trial_data[f'{column_name}PassOnTime'])
+        passivation_off_times.append(trial_data[f'{column_name}PassOffTime'])
+
+    passivation_on_times = np.transpose(passivation_on_times)
+    passivation_off_times = np.transpose(passivation_off_times)
+
+    return passivation_on_times, passivation_off_times
 

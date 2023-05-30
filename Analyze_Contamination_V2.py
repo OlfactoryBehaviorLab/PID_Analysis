@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 import Dewan_PID_Utils
 from Dewan_Contamination_Utils import normalize_data, baseline_shift, smooth_data, save_data, get_non_odor_trials, \
     get_passivation_rate, get_depassivation_rate, combine_indexes, get_concentration_type_pairs, \
-    parse_concentration_data, get_on_off_times
+    parse_concentration_data
+
+from Dewan_Contamination_Utils_V2 import get_on_off_times, plot_pulse_differences, exponential, fit_function
 
 
 
@@ -12,9 +14,9 @@ def main():
     # # # Configurables # # #
     max_tube_length = 1000
     min_concentration = 0.01
-    # sec_before = 1
-    # sec_after = 30
-    bad_trials = [14]
+    baseline_length = 300  # in msec
+    post_time = 0
+    bad_trials = []
     # # # Configurables # # #
 
     file_path, file_stem, file_folder = Dewan_PID_Utils.get_file()
@@ -40,6 +42,7 @@ def main():
     diluter_flowrate = trials['Dilutor_flowrate']
     pass_valve_off_time = trials['PassOffTime']
     pass_valve_on_time = trials['PassOnTime']
+    trial_duration = trials['trialdur']
     gain = trials['gain']
 
     pass_on_times, pass_off_times = get_on_off_times(trials)
@@ -63,9 +66,9 @@ def main():
 
             pulse_start_time = pass_on_times[pulse]
             pulse_end_time = pass_off_times[pulse]
-            roi_start = pulse_start_time - 300
-            roi_end = pulse_end_time
-            data_indexes = Dewan_PID_Utils.get_roi(pulse_start_time, pulse_end_time, time_stamp_array)
+            roi_start = pulse_start_time - baseline_length
+            roi_end = pulse_end_time + post_time
+            data_indexes = Dewan_PID_Utils.get_roi(roi_start, roi_end, time_stamp_array)
 
             pulse_data = sniff_data_array[data_indexes]
             time_stamp_array = time_stamp_array[data_indexes]
@@ -75,6 +78,12 @@ def main():
             differences.append(pulse_mean - baseline)
 
         trial_data.append(differences)
+
+
+    for each in trial_data:
+        coefficients, _ = fit_function(each)
+        plot_pulse_differences(each, trial_duration[0], coefficients)
+
 
 if __name__ == '__main__':
     main()

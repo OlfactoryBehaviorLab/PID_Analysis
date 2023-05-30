@@ -273,17 +273,3 @@ def save_concentration_data(file_path, file_stem, odor_name, tube_length, unique
     data.to_csv(csv_path, index=False)
 
 
-def get_on_off_times(trial_data):
-    passivation_on_times = []
-    passivation_off_times = []
-
-    for time in range(1, 31):
-        column_name = str(time)
-        passivation_on_times.append(trial_data[f'{column_name}PassOnTime'])
-        passivation_off_times.append(trial_data[f'{column_name}PassOffTime'])
-
-    passivation_on_times = np.transpose(passivation_on_times)
-    passivation_off_times = np.transpose(passivation_off_times)
-
-    return passivation_on_times, passivation_off_times
-

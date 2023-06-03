@@ -1,5 +1,6 @@
 import h5py
 import os
+import pandas as pd
 import numpy as np
 import PySimpleGUI as sg
 
@@ -48,7 +49,7 @@ def get_roi(ROI_Start: int, ROI_End: int, data_array):
     return roi_index
 
 
-def get_file(path=None) -> (str, str):
+def get_file(path=None) -> (str, str, str):
     if path is None:
         filename = sg.popup_get_file("Select H5 File...", file_types=(("H5 Files", "*.h5"), ("All Files", "*.*")))
     else:
@@ -59,4 +60,11 @@ def get_file(path=None) -> (str, str):
     return filename, file_stem, file_folder
 
 
-
+def save_data(file_name_stem, file_folder, data, fig):
+    column_labels = ['OdorConcentration', 'PIDPump', 'PIDGain', 'PeakPIDResponse', ' AveragePIDResponse', 'odorVial',
+                     'Carrier_flowrate', 'Diluter_flowrate', 'PIDSpace', 'OdorName']
+    output = pd.DataFrame(data, columns=column_labels)
+    file_path = os.path.join(file_folder, 'CSV', f'{file_name_stem}.csv')
+    fig_path = os.path.join(file_folder, 'Figures', f'{file_name_stem}.png')
+    fig.savefig(fig_path, dpi=600)
+    output.to_csv(file_path, index=False)

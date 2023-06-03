@@ -1,4 +1,5 @@
 import h5py
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -7,20 +8,13 @@ import Dewan_PID_Utils
 plt.rcParams['figure.dpi'] = 600
 
 
-def save_csv(file_name_stem, data):
-    column_labels = ['OdorConcentration', 'PIDPump', 'PIDGain', 'PeakPIDResponse', ' AveragePIDResponse', 'odorVial',
-                     'Carrier_flowrate', 'Diluter_flowrate', 'PIDSpace', 'OdorName']
-    output = pd.DataFrame(data, columns=column_labels)
-    output.to_csv(f'.\\{file_name_stem}.csv', index=False)
-
-
 def main():
 
-    file_path, file_name_stem, _ = Dewan_PID_Utils.get_file()
+    file_path, file_name_stem, file_folder = Dewan_PID_Utils.get_file()
     h5_file = Dewan_PID_Utils.open_h5_file(file_path)
 
-    num_sec_before_fv = 0.5
-    num_sec_after_fv = 1.5
+    num_sec_before_fv = 1
+    num_sec_after_fv = 2.5
 
     plot_sec_before_fv = 1
     plot_sec_after_fv = 6
@@ -119,10 +113,8 @@ def main():
     ax1.axvline(x=2, color='r')
     ax1.axvline(x=0, color='r')
 
+    Dewan_PID_Utils.save_data(file_name_stem, file_folder, data, fig)
     fig.show()
-
-    save_csv(file_name_stem, data)
-
 
 if __name__ == "__main__":
     main()

@@ -1,5 +1,6 @@
 
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import Dewan_PID_Utils
 from tqdm import tqdm, trange
@@ -8,6 +9,10 @@ plt.rcParams['figure.dpi'] = 600
 
 
 def main():
+
+    LINE_COLOR = 'grey'
+    BOX_COLOR = 'royalblue'
+    BOX_TRANSPARENCY = 0.25
 
     file_path, file_name_stem, file_folder = Dewan_PID_Utils.get_file()
     h5_file = Dewan_PID_Utils.open_h5_file(file_path)
@@ -54,18 +59,9 @@ def main():
         time_stamp_array_plot = np.copy(time_stamp_array)
         sniff_data_array_plot = np.copy(sniff_data_array)
 
-        # TOI_start = final_valve_on_time[i] - num_sec_before_fv * 1000
-        # TOI_end = final_valve_on_time[i] + num_sec_after_fv * 1000
-
         TOI_start_plot = final_valve_on_time[i] - plot_sec_before_fv * 1000
         TOI_end_plot = final_valve_on_time[i] + plot_sec_after_fv * 1000
 
-        # roi_index = Dewan_PID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
-        # sniff_data_array = sniff_data_array[roi_index]
-        # time_stamp_array = time_stamp_array[roi_index]
-        # end_baseline = int(num_sec_before_fv * 1000 - 100)
-        # baseline = np.mean(sniff_data_array[100:end_baseline])
-        # sniff_data_array = sniff_data_array - baseline
 
         plot_roi_index = Dewan_PID_Utils.get_roi(TOI_start_plot, TOI_end_plot, time_stamp_array_plot)
         sniff_data_array_plot = sniff_data_array_plot[plot_roi_index]
@@ -73,12 +69,6 @@ def main():
         base_ROI_plot = np.where(time_stamp_array_plot < (final_valve_on_time[i] - 50))[0]
         baseline_plot = np.mean(sniff_data_array_plot[base_ROI_plot])
         sniff_data_array_plot = sniff_data_array_plot - baseline_plot
-
-        # peak_PID_response = np.max(sniff_data_array)
-        # average_range_start = final_valve_on_time[i] + 500
-        # average_range_end = final_valve_on_time[i] + 1500
-        # average_ROI = Dewan_PID_Utils.get_roi(average_range_start, average_range_end, time_stamp_array)
-        # average_PID_response = np.mean(sniff_data_array[average_ROI])
 
         x_values = (time_stamp_array_plot - final_valve_on_time[i]) / 1000
         x_vals.append(max(x_values))
@@ -90,20 +80,16 @@ def main():
         y_vals.append(max(y_values))
 
         # you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
-
-        ax1.plot(x_values, y_values, linewidth=0.5)
-
-        # row_data = [odor_concentration[i], pid_pump[i], pid_gain[i], peak_PID_response, average_PID_response,
-        #             odor_vial[i], carrier_flowrate[i], dilutor_flowrate[i], pid_spacer[i], odor_name[i]]
-
-        # data.append(row_data)
+        ax1.plot(x_values, y_values, linewidth=0.5, color=LINE_COLOR)
 
     h5_file.close()
-
     ax1.set_ylim([0, max(y_vals) + (max(y_vals) * 0.05)])
-    ax1.set_xlim([min(x_vals), max(x_vals)])
-
-    x_ticks = np.arange(round(min(x_vals)), round(max(x_vals)) + 1)
+    ax1.set_xlim([-1, 4])
+    ax1.get_yaxis().set_visible(False)
+    rect = patches.Rectangle((0, 0), 2, (max(y_vals)*1.05), color=BOX_COLOR, alpha=BOX_TRANSPARENCY)
+    ax1.add_patch(rect)
+    ax1.set_xlabel("Time (s)", fontfamily='arial', fontsize=12, fontweight= 'bold')
+    x_ticks = np.arange(-1, 5)
 
     plt.xticks(x_ticks)
 

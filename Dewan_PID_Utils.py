@@ -72,4 +72,4 @@ def save_data(file_name_stem, file_folder, data, fig):
 
 def save_figure(file_name_stem, file_folder, fig):
     fig_path = os.path.join(file_folder, 'Figures', f'{file_name_stem}.pdf')
-    fig.savefig(fig_path, dpi=300)
+    fig.savefig(fig_path, transparent=True, dpi=300)

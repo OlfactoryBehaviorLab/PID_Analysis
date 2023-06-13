@@ -5,14 +5,18 @@ import Dewan_PID_Utils
 from tqdm import trange
 
 plt.rcParams['figure.dpi'] = 600
+plt.rcParams['pdf.fonttype'] = 42
 
 
 def main():
+
+    # # # Graph Configurables # # #
     LINE_COLOR = 'grey'
     BOX_COLOR = 'royalblue'
     BOX_TRANSPARENCY = 0.25
     plot_sec_before_fv = 1
     plot_sec_after_fv = 6
+    # # # Graph Configurables # # #
 
     file_path, file_name_stem, file_folder = Dewan_PID_Utils.get_file()
     h5_file = Dewan_PID_Utils.open_h5_file(file_path)

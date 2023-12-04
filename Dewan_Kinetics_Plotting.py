@@ -74,7 +74,7 @@ def main():
     h5_file.close()
     ax1.set_ylim([0, max(y_vals) + (max(y_vals) * 0.05)])
     ax1.set_xlim([-1, 4])
-    ax1.get_yaxis().set_visible(False)
+    #ax1.get_yaxis().set_visible(False)
     rect = patches.Rectangle((0, 0), 2, (max(y_vals)*1.05), color=BOX_COLOR, alpha=BOX_TRANSPARENCY)
     ax1.add_patch(rect)
     ax1.set_xlabel("Time (s)", fontfamily='arial', fontsize=12, fontweight='bold')

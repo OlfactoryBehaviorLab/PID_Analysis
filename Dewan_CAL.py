@@ -21,19 +21,19 @@ def main():
 
     trials = h5_file['/Trials']
     trial_names = list(h5_file.keys())
-    CF_trials = np.where(trials['Type'] == b'3')[0][1:]  # CF is type 3
-    type_9_trials = np.where(trials['trialtype'] == 9)[0]  # Pure check is type 9
+    cal_trials = np.where(trials['trialtype'] == 2)[0]  # CF is type 3
+    #type_9_trials = np.where(trials['trialtype'] == 9)[0]  # Pure check is type 9
     # CF_trials = np.hstack((type_3_trials, type_9_trials))  # Stick em together
-    num_trials = len(CF_trials)
-    final_valve_on_time = trials['fvOnTime'][CF_trials]
-    odor_concentration = trials['odorconc'][CF_trials]
-    pid_pump = Dewan_PID_Utils.decode_list(trials['PIDPump'][CF_trials])
-    pid_spacer = trials['PIDSpace'][CF_trials]
-    pid_gain = trials['PIDGain'][CF_trials]
-    odor_vial = trials['odorvial'][CF_trials]
-    carrier_flowrate = trials['Carrier_flowrate'][CF_trials]
-    dilutor_flowrate = trials['Dilutor_flowrate'][CF_trials]
-    odor_name = Dewan_PID_Utils.decode_list(trials['odor'][CF_trials])
+    num_trials = len(cal_trials)
+    final_valve_on_time = trials['fvOnTime'][cal_trials]
+    odor_concentration = trials['odorconc'][cal_trials]
+    pid_pump = Dewan_PID_Utils.decode_list(trials['PIDPump'][cal_trials])
+    pid_spacer = trials['PIDSpace'][cal_trials]
+    pid_gain = trials['PIDGain'][cal_trials]
+    odor_vial = trials['odorvial'][cal_trials]
+    carrier_flowrate = trials['Carrier_flowrate'][cal_trials]
+    dilutor_flowrate = trials['Dilutor_flowrate'][cal_trials]
+    odor_name = Dewan_PID_Utils.decode_list(trials['odor'][cal_trials])
 
 
     fig, ax1 = plt.subplots()
@@ -41,7 +41,7 @@ def main():
     x_vals = []
 
     for i in trange(num_trials):
-        trial_number = CF_trials[i]
+        trial_number = cal_trials[i]
         trial_name = trial_names[trial_number]
 
         event_data, sniff_data = Dewan_PID_Utils.get_sniff_data(h5_file, trial_name)

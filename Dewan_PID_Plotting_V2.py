@@ -51,9 +51,8 @@ def main():
         FV_on_time = final_valve_on_time[i]
         odor_dur = odor_duration[i]
 
-
-        baseline_start = FV_on_time - 1000
-        baseline_end = FV_on_time - 50
+        baseline_start = FV_on_time - 1100
+        baseline_end = FV_on_time - 100
         baseline_index = Dewan_PID_Utils.get_roi(baseline_start, baseline_end, time_stamp_array)
 
         baseline = np.mean(sniff_data_array[baseline_index])
@@ -97,10 +96,14 @@ def main():
 
     plt.xticks(x_ticks)
 
-    ax1.axvline(x=0.5, color='k')
-    ax1.axvline(x=1.5, color='k')
+    average_line_end = odor_duration[0] / 1000
+    average_line_start = average_line_end - (time_to_average / 1000)
+
     ax1.axvline(x=2, color='r')
     ax1.axvline(x=0, color='r')
+
+    ax1.axvline(x=average_line_end, color='k')
+    ax1.axvline(x=average_line_start, color='k')
 
     Dewan_PID_Utils.save_data(file_name_stem, file_folder, data, fig)
     fig.show()

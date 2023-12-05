@@ -33,7 +33,6 @@ def main():
     odor_name = Dewan_PID_Utils.decode_list(trials['odor'][CF_trials])
     odor_preduration = trials['odorpreduration'][CF_trials]
     odor_duration = trials['trialdur'][CF_trials]
-
     fig, ax1 = plt.subplots()
     y_vals = []
     x_vals = []
@@ -53,30 +52,34 @@ def main():
         FV_on_time = final_valve_on_time[i]
         odor_dur = odor_duration[i]
 
-        baseline_start = FV_on_time - 1000
-        baseline_end = FV_on_time - 50
+        baseline_start = FV_on_time - 1100  # Baseline is from 1100-100ms before the FV
+        baseline_end = FV_on_time - 100
         baseline_index = Dewan_PID_Utils.get_roi(baseline_start, baseline_end, time_stamp_array)
 
         baseline = np.mean(sniff_data_array[baseline_index])
-        sniff_data_array = np.subtract(sniff_data_array, baseline)
+        sniff_data_array = np.subtract(sniff_data_array, baseline)  # Baseline shift the data
 
-        peak_PID_response = np.max(sniff_data_array)
-        average_range_end = FV_on_time + odor_dur
-        average_range_start = average_range_end - time_to_average
+        peak_PID_response = np.max(sniff_data_array)  # Get max response
+        average_range_end = FV_on_time + odor_dur  # The end of the average will be the entire odor duration
+        average_range_start = average_range_end - time_to_average  # We will start at the end, and backup a bit
 
         average_response_indexes = Dewan_PID_Utils.get_roi(average_range_start, average_range_end, time_stamp_array)
-        average_PID_response = np.mean(sniff_data_array[average_response_indexes])
+        average_PID_response = np.mean(sniff_data_array[average_response_indexes])  # Average the ROI
 
         plot_end = average_range_end + extra_plot_end
+        # We basically will plot the same space, but with some buffer at the end
         plot_roi = Dewan_PID_Utils.get_roi(baseline_start, plot_end, time_stamp_array)
 
-        x_values = (time_stamp_array[plot_roi] - final_valve_on_time[i]) / 1000
+        x_values = (time_stamp_array[plot_roi] - final_valve_on_time[i]) / 1000  # Reference times to FV on
         x_vals.append(max(x_values))
         x_vals.append(min(x_values))
 
         y_values = sniff_data_array[plot_roi] / pid_gain[i]
+        # Scale data by gain
         y_values = y_values / (carrier_flowrate[i] / 900)
+        # Scale data by flow dilution
         y_values = y_values * 4.8828
+        # Convert bits -> volts
         y_vals.append(max(y_values))
 
         # you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
@@ -86,6 +89,7 @@ def main():
         row_data = [odor_concentration[i], pid_pump[i], pid_gain[i], peak_PID_response, average_PID_response,
                     odor_vial[i], carrier_flowrate[i], dilutor_flowrate[i], odor_preduration[i], odor_duration[i],
                     pid_spacer[i], odor_name[i]]
+        # Combine the data
 
 
         data.append(row_data)
@@ -99,10 +103,14 @@ def main():
 
     plt.xticks(x_ticks)
 
-    ax1.axvline(x=0.5, color='k')
-    ax1.axvline(x=1.5, color='k')
+    average_line_end = odor_duration[0] / 1000
+    average_line_start = average_line_end - (time_to_average / 1000)
+
     ax1.axvline(x=2, color='r')
     ax1.axvline(x=0, color='r')
+
+    ax1.axvline(x=average_line_end, color='k')
+    ax1.axvline(x=average_line_start, color='k')
 
     Dewan_PID_Utils.save_data(file_name_stem, file_folder, data, fig)
     fig.show()

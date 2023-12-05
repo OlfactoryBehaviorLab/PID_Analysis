@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import Dewan_PID_Utils
+from Utils import Dewan_PID_Utils
 from tqdm import trange
 
 plt.rcParams['figure.dpi'] = 600
@@ -11,12 +11,8 @@ def main():
     file_path, file_name_stem, file_folder = Dewan_PID_Utils.get_file()
     h5_file = Dewan_PID_Utils.open_h5_file(file_path)
 
-    num_sec_before_fv = 1
-    num_sec_after_fv = 4
-
-    plot_sec_before_fv = 1
-    plot_sec_after_fv = 10
-
+    time_to_average = 1500  # Time in MS to average before the FV turns off
+    extra_plot_end = 2000
     data = []
 
     trials = h5_file['/Trials']
@@ -35,6 +31,8 @@ def main():
     carrier_flowrate = trials['Carrier_flowrate'][CF_trials]
     dilutor_flowrate = trials['Dilutor_flowrate'][CF_trials]
     odor_name = Dewan_PID_Utils.decode_list(trials['odor'][CF_trials])
+    odor_preduration = trials['odorpreduration'][CF_trials]
+    odor_duration = trials['trialdur'][CF_trials]
 
     fig, ax1 = plt.subplots()
     y_vals = []
@@ -52,40 +50,31 @@ def main():
         sniff_data_array, time_stamp_array = Dewan_PID_Utils.condense_packets(sniff_data, sniff_samples,
                                                                               packet_sent_time)
 
-        time_stamp_array_plot = np.copy(time_stamp_array)
-        sniff_data_array_plot = np.copy(sniff_data_array)
+        FV_on_time = final_valve_on_time[i]
+        odor_dur = odor_duration[i]
 
-        TOI_start = final_valve_on_time[i] - num_sec_before_fv * 1000
-        TOI_end = final_valve_on_time[i] + num_sec_after_fv * 1000
+        baseline_start = FV_on_time - 1000
+        baseline_end = FV_on_time - 50
+        baseline_index = Dewan_PID_Utils.get_roi(baseline_start, baseline_end, time_stamp_array)
 
-        TOI_start_plot = final_valve_on_time[i] - plot_sec_before_fv * 1000
-        TOI_end_plot = final_valve_on_time[i] + plot_sec_after_fv * 1000
-
-        roi_index = Dewan_PID_Utils.get_roi(TOI_start, TOI_end, time_stamp_array)
-        sniff_data_array = sniff_data_array[roi_index]
-        time_stamp_array = time_stamp_array[roi_index]
-        end_baseline = int(num_sec_before_fv * 1000 - 100)
-        baseline = np.mean(sniff_data_array[100:end_baseline])
-        sniff_data_array = sniff_data_array - baseline
-
-        plot_roi_index = Dewan_PID_Utils.get_roi(TOI_start_plot, TOI_end_plot, time_stamp_array_plot)
-        sniff_data_array_plot = sniff_data_array_plot[plot_roi_index]
-        time_stamp_array_plot = time_stamp_array_plot[plot_roi_index]
-        base_ROI_plot = np.where(time_stamp_array_plot < (final_valve_on_time[i] - 50))[0]
-        baseline_plot = np.mean(sniff_data_array_plot[base_ROI_plot])
-        sniff_data_array_plot = sniff_data_array_plot - baseline_plot
+        baseline = np.mean(sniff_data_array[baseline_index])
+        sniff_data_array = np.subtract(sniff_data_array, baseline)
 
         peak_PID_response = np.max(sniff_data_array)
-        average_range_start = final_valve_on_time[i] + 500
-        average_range_end = final_valve_on_time[i] + 1500
-        average_ROI = Dewan_PID_Utils.get_roi(average_range_start, average_range_end, time_stamp_array)
-        average_PID_response = np.mean(sniff_data_array[average_ROI])
+        average_range_end = FV_on_time + odor_dur
+        average_range_start = average_range_end - time_to_average
 
-        x_values = (time_stamp_array_plot - final_valve_on_time[i]) / 1000
+        average_response_indexes = Dewan_PID_Utils.get_roi(average_range_start, average_range_end, time_stamp_array)
+        average_PID_response = np.mean(sniff_data_array[average_response_indexes])
+
+        plot_end = average_range_end + extra_plot_end
+        plot_roi = Dewan_PID_Utils.get_roi(baseline_start, plot_end, time_stamp_array)
+
+        x_values = (time_stamp_array[plot_roi] - final_valve_on_time[i]) / 1000
         x_vals.append(max(x_values))
         x_vals.append(min(x_values))
 
-        y_values = sniff_data_array_plot / pid_gain[i]
+        y_values = sniff_data_array[plot_roi] / pid_gain[i]
         y_values = y_values / (carrier_flowrate[i] / 900)
         y_values = y_values * 4.8828
         y_vals.append(max(y_values))
@@ -95,7 +84,9 @@ def main():
         ax1.plot(x_values, y_values, linewidth=0.5)
 
         row_data = [odor_concentration[i], pid_pump[i], pid_gain[i], peak_PID_response, average_PID_response,
-                    odor_vial[i], carrier_flowrate[i], dilutor_flowrate[i], pid_spacer[i], odor_name[i]]
+                    odor_vial[i], carrier_flowrate[i], dilutor_flowrate[i], odor_preduration[i], odor_duration[i],
+                    pid_spacer[i], odor_name[i]]
+
 
         data.append(row_data)
 

@@ -62,12 +62,12 @@ def get_file(path=None) -> (str, str, str):
 
 def save_data(file_name_stem, file_folder, data, fig):
     column_labels = ['OdorConcentration', 'PIDPump', 'PIDGain', 'PeakPIDResponse', ' AveragePIDResponse', 'odorVial',
-                     'Carrier_flowrate', 'Diluter_flowrate', 'PIDSpace', 'OdorName']
+                     'Carrier_flowrate', 'Diluter_flowrate', 'Odor Preduration', 'Odor Duration', 'PIDSpace', 'OdorName']
     output = pd.DataFrame(data, columns=column_labels)
-    file_path = os.path.join(file_folder, 'CSV', f'{file_name_stem}.xlsx')
+    file_path = os.path.join(file_folder, 'XLSX', f'{file_name_stem}.xlsx')
     fig_path = os.path.join(file_folder, 'Figures', f'{file_name_stem}.png')
     fig.savefig(fig_path, dpi=600)
-    output.to_xlsx(file_path, index=False)
+    output.to_excel(file_path, index=False)
 
 
 def save_figure(file_name_stem, file_folder, fig):

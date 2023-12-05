@@ -1,12 +1,10 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-import Dewan_PID_Utils
-from Dewan_Contamination_Utils import normalize_data, baseline_shift, smooth_data, save_data, get_non_odor_trials, \
-    get_passivation_rate, get_depassivation_rate, combine_indexes, get_concentration_type_pairs, \
-    parse_concentration_data
+from Utils import Dewan_PID_Utils
+from Dewan_Contamination_Utils import get_non_odor_trials, \
+    combine_indexes
 
-from Dewan_Contamination_Utils_V2 import get_on_off_times, plot_pulse_differences, exponential, fit_function
+from Utils.Dewan_Contamination_Utils_V2 import get_on_off_times, plot_pulse_differences, fit_function
 
 
 

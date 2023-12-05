@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import Dewan_PID_Utils
+from Utils import Dewan_PID_Utils
 from tqdm import trange
 
 plt.rcParams['figure.dpi'] = 600

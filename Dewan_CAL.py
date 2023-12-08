@@ -95,7 +95,8 @@ def main():
         ax1.plot(x_values, y_values, linewidth=0.5)
 
         row_data = [odor_concentration[i], pid_pump[i], pid_gain[i], peak_PID_response, average_PID_response,
-                    odor_vial[i], carrier_flowrate[i], dilutor_flowrate[i], pid_spacer[i], odor_name[i]]
+                    odor_vial[i], carrier_flowrate[i], dilutor_flowrate[i], 'NA', 'NA',
+                    pid_spacer[i], odor_name[i]]
 
         data.append(row_data)
 

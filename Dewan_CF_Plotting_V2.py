@@ -103,17 +103,18 @@ def main():
 
     plt.xticks(x_ticks)
 
-    average_line_end = odor_duration[0] / 1000
+    average_line_end = odor_duration[-1] / 1000
     average_line_start = average_line_end - (time_to_average / 1000)
 
-    ax1.axvline(x=2, color='r')
+    ax1.axvline(x=(average_line_end+0.03), color='r')
     ax1.axvline(x=0, color='r')
 
-    ax1.axvline(x=average_line_end, color='k')
+    ax1.axvline(x=(average_line_end), color='k')
     ax1.axvline(x=average_line_start, color='k')
 
     Dewan_PID_Utils.save_data(file_name_stem, file_folder, data, fig)
     fig.show()
+
 
 if __name__ == "__main__":
     main()

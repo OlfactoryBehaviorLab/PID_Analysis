@@ -27,17 +27,31 @@ def parse_session_info(session_data) -> pd.DataFrame:
     info = info.map(lambda x: x[0])
 
     firmware = info['Firmware']
-    firmware = collapse_array_as_str(firmware)
+    firmware = array_to_version_number(firmware)
     info['Firmware'] = firmware
 
     circuit_rev = info['CircuitRevision']
-    circuit_rev = collapse_array_as_str(circuit_rev)
+    circuit_rev = array_to_version_number(circuit_rev)
     info['CircuitRevision'] = circuit_rev
 
     return info
 
 
-def collapse_array_as_str(array):
+def parse_analog_data(session_data):
+    analog_data_swap = session_data['analog_stream_swap'][0][0]
+    analog_data_swap = pd.DataFrame(analog_data_swap)
+
+    analog_data_swap = analog_data_swap.map(lambda x: np.ravel(x))
+
+    start_indexes = analog_data_swap.index[analog_data_swap['sync_indexes'] == 83]
+    FV_indexes = analog_data_swap.index[analog_data_swap['sync_indexes'] == 70]
+    end_indexes = analog_data_swap.index[analog_data_swap['sync_indexes'] == 69]
+
+    # TODO: Ask Josh how we prevent from loosing the occasional sync index when polling a_in
+
+    pass
+
+def array_to_version_number(array):
     array = array.apply(np.hstack).apply(np.ravel)[0]
     array = '.'.join(list(array.astype(str)))
 

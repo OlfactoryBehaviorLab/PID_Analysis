@@ -73,7 +73,11 @@ def main():
         x_vals.append(min(x_values))
 
         y_values = sniff_data_array[plot_roi] / pid_gain[i]
-        y_values = y_values / (carrier_flowrate[i] / 900)
+        flow_dilution = carrier_flowrate[i] / 900
+
+        if flow_dilution > 0:  # If no flow dilution, we skip this to not divide by zero
+            y_values = y_values / flow_dilution
+            
         y_values = y_values * 4.8828
         y_vals.append(max(y_values))
 

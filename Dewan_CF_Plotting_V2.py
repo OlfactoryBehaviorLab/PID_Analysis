@@ -76,7 +76,10 @@ def main():
 
         y_values = sniff_data_array[plot_roi] / pid_gain[i]
         # Scale data by gain
-        y_values = y_values / (carrier_flowrate[i] / 900)
+        flow_dilution = carrier_flowrate[i] / 900
+
+        if flow_dilution > 0:  # If no flow dilution, we skip this to not divide by zero
+            y_values = y_values / flow_dilution
         # Scale data by flow dilution
         y_values = y_values * 4.8828
         # Convert bits -> volts

@@ -8,21 +8,7 @@ def parse_mat(path: pathlib.Path):
 
     session_data = mat_file['SessionData'][0]
     trial_settings = parse_settings(session_data)
-
-
-def load_mat(path: pathlib.Path) -> dict:
-    mat_file = []
-    try:
-        mat_file = sio.loadmat(str(path))
-    except FileNotFoundError as e:
-        print(e.strerror)
-        print(f'File at path {path} does not exist!')
-        return mat_file
-    except TypeError as e2:
-        print(e2.strerror)
-        return mat_file
-
-    return mat_file
+    session_info = parse_session_info(session_data)
 
 
 def parse_settings(session_data) -> pd.DataFrame:
@@ -34,7 +20,7 @@ def parse_settings(session_data) -> pd.DataFrame:
     return settings
 
 
-def session_info(session_data) -> pd.DataFrame:
+def parse_session_info(session_data) -> pd.DataFrame:
     info = session_data['Info'][0][0]
     info = pd.DataFrame(info)
     info = info.map(np.ravel)
@@ -56,3 +42,19 @@ def collapse_array_as_str(array):
     array = '.'.join(list(array.astype(str)))
 
     return array
+
+
+def load_mat(path: pathlib.Path) -> dict:
+    mat_file = []
+    try:
+        mat_file = sio.loadmat(str(path))
+    except FileNotFoundError as e:
+        print(e.strerror)
+        print(f'File at path {path} does not exist!')
+        return mat_file
+    except TypeError as e2:
+        print(e2.with_traceback)
+        return mat_file
+
+    return mat_file
+

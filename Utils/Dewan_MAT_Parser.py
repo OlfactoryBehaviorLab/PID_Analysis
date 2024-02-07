@@ -9,6 +9,8 @@ def parse_mat(path: pathlib.Path):
     session_data = mat_file['SessionData'][0]
     trial_settings = parse_settings(session_data)
     session_info = parse_session_info(session_data)
+    trial_data = parse_analog_data(session_data)
+
 
 
 def parse_settings(session_data) -> pd.DataFrame:
@@ -39,12 +41,52 @@ def parse_session_info(session_data) -> pd.DataFrame:
 
 def parse_analog_data(session_data):
     analog_data_swap = session_data['analog_stream_swap'][0][0]
+    analog_data_swap = preprocess_analog_swap(analog_data_swap)
+
+    sync_bytes = get_sync_bytes(analog_data_swap)
+
+    trial_data = {  # Should really use more dicts
+        'start_bits': [],
+        'end_bits': [],
+        'start_volts': [],
+        'end_volts': []
+    }
+
+    indices = sync_bytes.values
+
+    for each in sync_bytes.index.tolist():
+        indices = sync_bytes.iloc[each]
+        start_data = analog_data_swap.iloc[indices['Start']:indices['FV']]
+        end_data = analog_data_swap.iloc[indices['FV']:indices['End']]
+
+        start_data_bits = start_data['samples'].tolist()
+        end_data_bits = end_data['samples'].tolist()
+
+        start_data_volts = start_data['samples_volts'].tolist()
+        end_data_volts = end_data['samples_volts'].tolist()
+
+        start_data_bits = np.hstack(start_data_bits)
+        end_data_bits = np.hstack(end_data_bits)
+        start_data_volts = np.hstack(start_data_volts)
+        end_data_volts = np.hstack(end_data_volts)
+
+        trial_data['start_bits'].append(start_data_bits)
+        trial_data['end_bits'].append(end_data_bits)
+        trial_data['start_volts'].append(start_data_volts)
+        trial_data['end_volts'].append(end_data_volts)
+
+    trial_data = pd.DataFrame(trial_data)
+
+    return trial_data
+
+
+def preprocess_analog_swap(analog_data_swap):
     analog_data_swap = pd.DataFrame(analog_data_swap)
     analog_data_swap = analog_data_swap.apply(lambda x: np.ravel(x))
     columns_to_explode = list(analog_data_swap.keys().values[:2])
     analog_data_swap = analog_data_swap.explode(columns_to_explode)
 
-    sync_bytes = get_sync_bytes(analog_data_swap)
+    return analog_data_swap
 
 
 

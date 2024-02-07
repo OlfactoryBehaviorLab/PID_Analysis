@@ -40,16 +40,35 @@ def parse_session_info(session_data) -> pd.DataFrame:
 def parse_analog_data(session_data):
     analog_data_swap = session_data['analog_stream_swap'][0][0]
     analog_data_swap = pd.DataFrame(analog_data_swap)
+    analog_data_swap = analog_data_swap.apply(lambda x: np.ravel(x))
+    columns_to_explode = list(analog_data_swap.keys().values[:2])
+    analog_data_swap = analog_data_swap.explode(columns_to_explode)
 
-    analog_data_swap = analog_data_swap.map(lambda x: np.ravel(x))
+    sync_bytes = get_sync_bytes(analog_data_swap)
 
-    start_indexes = analog_data_swap.index[analog_data_swap['sync_indexes'] == 83]
-    FV_indexes = analog_data_swap.index[analog_data_swap['sync_indexes'] == 70]
-    end_indexes = analog_data_swap.index[analog_data_swap['sync_indexes'] == 69]
 
-    # TODO: Ask Josh how we prevent from loosing the occasional sync index when polling a_in
 
-    pass
+def get_sync_bytes(analog_data_swap):
+    sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
+
+    trial_start_bytes = sync_bytes.index[sync_bytes == 83]
+    FV_on_bytes = sync_bytes.index[sync_bytes == 70]
+    trial_end_bytes = sync_bytes.index[sync_bytes == 69]
+
+    sync_bytes_per_trial = pd.DataFrame(np.transpose([trial_start_bytes, FV_on_bytes, trial_end_bytes]),
+                                        columns=['Start', 'FV', 'End'])
+    sync_bytes_columns = sync_bytes_per_trial.columns
+    lengths = []
+
+    for each in sync_bytes_columns:
+        lengths.append(len(sync_bytes_per_trial[each].values))
+
+    all_equal = np.array_equal(lengths, lengths)
+
+    if not all_equal:
+        raise "Error: unequal number of sync bytes, please repair sync data in MATLAB"
+
+    return sync_bytes_per_trial
 
 def array_to_version_number(array):
     array = array.apply(np.hstack).apply(np.ravel)[0]

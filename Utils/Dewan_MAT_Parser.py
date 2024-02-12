@@ -3,14 +3,26 @@ import scipy.io as sio
 import pandas as pd
 import numpy as np
 
+
 def parse_mat(path: pathlib.Path):
     mat_file = load_mat(path)
+
+    pid_data = {
+        'settings': [],
+        'session_info': [],
+        'data': [],
+    }
 
     session_data = mat_file['SessionData'][0]
     trial_settings = parse_settings(session_data)
     session_info = parse_session_info(session_data)
     trial_data = parse_analog_data(session_data)
 
+    pid_data['settings'] = trial_settings
+    pid_data['session_info'] = session_info
+    pid_data['data'] = trial_data
+
+    return pid_data
 
 
 def parse_settings(session_data) -> pd.DataFrame:

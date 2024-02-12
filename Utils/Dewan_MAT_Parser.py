@@ -9,20 +9,34 @@ def parse_mat(path: pathlib.Path):
 
     pid_data = {
         'settings': [],
-        'session_info': [],
+        'bpod_info': [],
+        'experiment': [],
         'data': [],
     }
 
     session_data = mat_file['SessionData'][0]
     trial_settings = parse_settings(session_data)
     session_info = parse_session_info(session_data)
+    experiment_info = parse_experiment_info(session_data)
     trial_data = parse_analog_data(session_data)
 
     pid_data['settings'] = trial_settings
-    pid_data['session_info'] = session_info
+    pid_data['bpod_info'] = session_info
+    pid_data['experiment'] = experiment_info
     pid_data['data'] = trial_data
 
     return pid_data
+
+
+def parse_experiment_info(session_data) -> pd.DataFrame:
+    exp_info = session_data['ExperimentParams'][0][0]
+    exp_info = pd.DataFrame(exp_info)
+    exp_info = exp_info.apply(lambda x: np.ravel(x[0]))
+
+    return exp_info
+
+
+
 
 
 def parse_settings(session_data) -> pd.DataFrame:
@@ -58,32 +72,47 @@ def parse_analog_data(session_data):
     sync_bytes = get_sync_bytes(analog_data_swap)
 
     trial_data = {  # Should really use more dicts
+        'baseline_bits': [],
         'start_bits': [],
         'end_bits': [],
+        'baseline_volts': [],
         'start_volts': [],
-        'end_volts': []
+        'end_volts': [],
     }
 
     indices = sync_bytes.values
 
     for each in sync_bytes.index.tolist():
         indices = sync_bytes.iloc[each]
-        start_data = analog_data_swap.iloc[indices['Start']:indices['FV']]
-        end_data = analog_data_swap.iloc[indices['FV']:indices['End']]
+        start_indices = indices['Start']
+        end_indices = indices['End']
+        baseline_indicies = np.subtract(start_indices, 10)
 
+        baseline_data = analog_data_swap.iloc[baseline_indicies, start_indices]
+        start_data = analog_data_swap.iloc[start_indices:indices['FV']]
+        end_data = analog_data_swap.iloc[indices['FV']:end_indices]
+
+        baseline_data_bits = baseline_data['samples'].tolist()
         start_data_bits = start_data['samples'].tolist()
         end_data_bits = end_data['samples'].tolist()
 
+        baseline_data_volts = baseline_data['samples_volts'].tolist()
         start_data_volts = start_data['samples_volts'].tolist()
         end_data_volts = end_data['samples_volts'].tolist()
 
+        baseline_data_bits = np.hstack(baseline_data_bits)
         start_data_bits = np.hstack(start_data_bits)
         end_data_bits = np.hstack(end_data_bits)
+
+        baseline_data_volts = np.hstack(baseline_data_volts)
         start_data_volts = np.hstack(start_data_volts)
         end_data_volts = np.hstack(end_data_volts)
 
+        trial_data['baseline_bits'].append(baseline_data_bits)
         trial_data['start_bits'].append(start_data_bits)
         trial_data['end_bits'].append(end_data_bits)
+
+        trial_data['baseline_volts'].append(baseline_data_volts)
         trial_data['start_volts'].append(start_data_volts)
         trial_data['end_volts'].append(end_data_volts)
 
@@ -99,7 +128,6 @@ def preprocess_analog_swap(analog_data_swap):
     analog_data_swap = analog_data_swap.explode(columns_to_explode)
 
     return analog_data_swap
-
 
 
 def get_sync_bytes(analog_data_swap):
@@ -123,6 +151,7 @@ def get_sync_bytes(analog_data_swap):
         raise "Error: unequal number of sync bytes, please repair sync data in MATLAB"
 
     return sync_bytes_per_trial
+
 
 def array_to_version_number(array):
     array = array.apply(np.hstack).apply(np.ravel)[0]

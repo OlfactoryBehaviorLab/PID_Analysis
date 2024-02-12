@@ -1,52 +1,30 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from Utils import Dewan_PID_Utils
+from Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
 
 plt.rcParams['figure.dpi'] = 600
 
 
 def main():
-
-    file_path, file_name_stem, file_folder = Dewan_PID_Utils.get_file()
-    h5_file = Dewan_PID_Utils.open_h5_file(file_path)
+    data = []
+    y_vals = []
+    x_vals = []
 
     time_to_average = 1500  # Time in MS to average before the FV turns off
     extra_plot_end = 2000
 
-    data = []
+    file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
+    bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
 
-    trials = h5_file['/Trials']
-    trial_names = list(h5_file.keys())
-    type_2_trials = np.where(trials['trialtype'] == 2)[0]
-    num_type_2_trials = len(type_2_trials)
+    experiment_type = bpod_data['experiment']['session_type']
+    settings = bpod_data['settings']
 
-    final_valve_on_time = trials['fvOnTime'][type_2_trials]
-    odor_concentration = trials['odorconc'][type_2_trials]
-    pid_pump = Dewan_PID_Utils.decode_list(trials['PIDPump'][type_2_trials])
-    pid_spacer = trials['PIDSpace'][type_2_trials]
-    pid_gain = trials['PIDGain'][type_2_trials]
-    odor_vial = trials['odorvial'][type_2_trials]
-    carrier_flowrate = trials['Carrier_flowrate'][type_2_trials]
-    dilutor_flowrate = trials['Dilutor_flowrate'][type_2_trials]
-    odor_name = Dewan_PID_Utils.decode_list(trials['odor'][type_2_trials])
-    odor_preduration = trials['odorpreduration'][type_2_trials]
-    odor_duration = trials['trialdur'][type_2_trials]
 
     fig, ax1 = plt.subplots()
-    y_vals = []
-    x_vals = []
 
-    for i in range(num_type_2_trials):
-        trial_number = type_2_trials[i]
-        trial_name = trial_names[trial_number]
 
-        event_data, sniff_data = Dewan_PID_Utils.get_sniff_data(h5_file, trial_name)
+    for i, trial in enumerate(settings):
 
-        sniff_samples = event_data['sniff_samples']
-        packet_sent_time = event_data['packet_sent_time']
-
-        sniff_data_array, time_stamp_array = Dewan_PID_Utils.condense_packets(sniff_data, sniff_samples,
-                                                                              packet_sent_time)
 
         FV_on_time = final_valve_on_time[i]
         odor_dur = odor_duration[i]

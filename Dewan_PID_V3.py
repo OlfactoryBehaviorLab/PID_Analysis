@@ -1,17 +1,23 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
+import pandas as pd
 
 plt.rcParams['figure.dpi'] = 600
 
 
 def main():
-    data = []
+    PID_Data = []
     y_vals = []
     x_vals = []
     fig, ax1 = plt.subplots()
 
-    file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
+    try:
+        file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
+    except FileNotFoundError as e:
+        print(e)
+        return
+
     bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
 
     # experiment_type = bpod_data['experiment']['session_type']

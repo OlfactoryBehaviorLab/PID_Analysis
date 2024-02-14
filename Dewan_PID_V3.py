@@ -27,62 +27,57 @@ def main():
     for i in range(num_trials):
 
         trial_settings = settings.iloc[i]
-        odor_duration = trial_settings['odor_duration']
+        odor_duration = trial_settings['odor_duration'] # TODO: fix the gain in the parser
         gain = trial_settings['pid_gain']
         carrier_flowrate = trial_settings['carrier_MFC']
 
         trial_data = bpod_data['data'].iloc[i]
 
-        baseline = np.mean(trial_data['baseline_bits'])
+        baseline_data = trial_data['baseline_bits']
+        avg_baseline_data = np.mean(trial_data['baseline_bits'])
         odor_data = trial_data['odor_bits']
-        odor_data_baseline_shift = np.subtract(odor_data, baseline)
+        end_data = trial_data['end_bits']
+
+        baseline_data_baseline_shift = np.subtract(baseline_data, avg_baseline_data)  # Yes, mostly zeros
+        odor_data_baseline_shift = np.subtract(odor_data, avg_baseline_data)
+        end_data_baseline_shift = np.subtract(end_data, avg_baseline_data)
 
         peak_PID_response = np.max(odor_data_baseline_shift)
         average_PID_response = np.mean(odor_data_baseline_shift)
 
-        # plot_end = average_range_end + extra_plot_end
-        # plot_roi = Dewan_PID_Utils.get_roi(baseline_start, plot_end, time_stamp_array)
-        num_data_points = len(odor_data_baseline_shift)
-        x_values = np.linspace(-2, settings.iloc[0]['odor_duration']/1000, num_data_points)
+        pre_trial_len = len(baseline_data_baseline_shift)
+        trial_len = len(odor_data_baseline_shift)
+        post_trial_time = len(end_data_baseline_shift)
 
-        #x_values = (time_stamp_array[plot_roi] - final_valve_on_time[i]) / 1000
-        x_vals.append(max(x_values))
-        x_vals.append(min(x_values))
+        number_items = pre_trial_len + trial_len + post_trial_time
 
-        y_values = odor_data_baseline_shift / gain
+        x_values = np.linspace(-2, 4,  number_items)
+
+        y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift))
+        #y_values = y_values / gain
         y_values = y_values / (carrier_flowrate / 900)
         y_values = y_values * 4.8828
         y_vals.append(max(y_values))
 
         # you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
-
         ax1.plot(x_values, y_values, linewidth=0.5)
 
-        row_data = [odor_concentration[i], pid_pump[i], pid_gain[i], peak_PID_response, average_PID_response,
-                    odor_vial[i], carrier_flowrate[i], dilutor_flowrate[i], odor_preduration[i], odor_duration[i],
-                    pid_spacer[i], odor_name[i]]
+        row_data = np.hstack((peak_PID_response, average_PID_response))
 
-        data.append(row_data)
+        PID_Data.append(row_data)
 
 
-    ax1.set_ylim([0, max(y_vals) + (max(y_vals) * 0.05)])
-    ax1.set_xlim([min(x_vals), max(x_vals)])
+    ax1.set_ylim([0, (max(y_vals) * 1.05)])
+    ax1.set_xlim([-2.5, 4.5])
 
-    x_ticks = np.arange(round(min(x_vals)), round(max(x_vals)) + 1)
-
+    #x_ticks = np.arange(round(min(x_vals)), round(max(x_vals)) + 1)
+    x_ticks = np.arange(-2, 4)
     plt.xticks(x_ticks)
 
-    average_line_end = odor_duration[-1] / 1000
-    average_line_start = average_line_end - (time_to_average / 1000)
+    PID_Data = pd.DataFrame(PID_Data, columns=['PID Peak', 'PID Avg'])
+    combined_data = settings.join(PID_Data)
 
-    ax1.axvline(x=(average_line_end + 0.03), color='r')
-    ax1.axvline(x=0, color='r')
-
-    ax1.axvline(x=(average_line_end), color='k')
-    ax1.axvline(x=average_line_start, color='k')
-
-    Dewan_PID_Utils.save_data(file_name_stem, file_folder, data, fig)
-    fig.show()
+    Dewan_PID_Utils_V2.save_data(file_name_stem, file_folder, combined_data, fig)
 
 if __name__ == "__main__":
     main()

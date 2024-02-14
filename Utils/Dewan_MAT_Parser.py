@@ -78,15 +78,15 @@ def parse_analog_data(session_data):
     for each in sync_bytes.index.tolist():
         indices = sync_bytes.iloc[each]
 
-        baseline_indices = indices['Baseline']
+        baseline_indices = indices['baseline']
 
         if len(baseline_indices) > 0:  # If there is somehow no baseline indices, use the odor start index
             start_indices = baseline_indices
         else:
-            start_indices = indices['Start']
+            start_indices = indices['start']
 
         FV_indices = indices['FV']
-        end_indices = indices['End']
+        end_indices = indices['end']
 
         baseline_data = analog_data_swap.iloc[start_indices:FV_indices]
         odor_data = analog_data_swap.iloc[FV_indices:end_indices]
@@ -122,26 +122,28 @@ def preprocess_analog_swap(analog_data_swap):
 
 
 def get_sync_bytes(analog_data_swap):
-    sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
 
-    baseline_start_bytes = sync_bytes.index[sync_bytes == 66]   # B(aseline)
-    trial_start_bytes = sync_bytes.index[sync_bytes == 83]      # S(tart)
-    FV_on_bytes = sync_bytes.index[sync_bytes == 70]            # F(inal Valve)
-    trial_end_bytes = sync_bytes.index[sync_bytes == 69]        # E(nd)
+    sync_bytes = {
+        'baseline': [],
+        'start': [],
+        'FV': [],
+        'end': []
+    }
 
-    sync_bytes_per_trial = pd.DataFrame(np.transpose([baseline_start_bytes,
-                                                      trial_start_bytes, FV_on_bytes, trial_end_bytes]),
-                                        columns=['Baseline', 'Start', 'FV', 'End'])
-    sync_bytes_columns = sync_bytes_per_trial.columns
-    lengths = []
+    all_sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
 
-    for each in sync_bytes_columns:
-        lengths.append(len(sync_bytes_per_trial[each].values))
+    sync_bytes['baseline'] = all_sync_bytes.index[all_sync_bytes == 63]   # B(aseline)
+    sync_bytes['start'] = all_sync_bytes.index[all_sync_bytes == 83]      # S(tart)
+    sync_bytes['FV'] = all_sync_bytes.index[all_sync_bytes == 70]            # F(inal Valve)
+    sync_bytes['end'] = all_sync_bytes.index[all_sync_bytes == 69]        # E(nd)
 
+    lengths = [len(sync_bytes[each]) for each in sync_bytes.keys()]
     all_equal = np.array_equal(lengths, lengths)
 
     if not all_equal:
         raise "Error: unequal number of sync bytes, please repair sync data in MATLAB"
+
+    sync_bytes_per_trial = pd.DataFrame(sync_bytes)
 
     return sync_bytes_per_trial
 

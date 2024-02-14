@@ -36,9 +36,6 @@ def parse_experiment_info(session_data) -> pd.DataFrame:
     return exp_info
 
 
-
-
-
 def parse_settings(session_data) -> pd.DataFrame:
     settings = session_data['Settings'][0][0]  # Grab settings list that is deeply nested
     settings = pd.DataFrame(settings)  # Convert to dataframe
@@ -73,48 +70,42 @@ def parse_analog_data(session_data):
 
     trial_data = {  # Should really use more dicts
         'baseline_bits': [],
-        'start_bits': [],
-        'end_bits': [],
+        'odor_bits': [],
         'baseline_volts': [],
-        'start_volts': [],
-        'end_volts': [],
+        'odor_volts': [],
     }
-
-    indices = sync_bytes.values
 
     for each in sync_bytes.index.tolist():
         indices = sync_bytes.iloc[each]
-        start_indices = indices['Start']
-        end_indices = indices['End']
-        baseline_indicies = np.subtract(start_indices, 10)
 
-        baseline_data = analog_data_swap.iloc[baseline_indicies, start_indices]
-        start_data = analog_data_swap.iloc[start_indices:indices['FV']]
-        end_data = analog_data_swap.iloc[indices['FV']:end_indices]
+        baseline_indices = indices['Baseline']
+
+        if len(baseline_indices) > 0:  # If there is somehow no baseline indices, use the odor start index
+            start_indices = baseline_indices
+        else:
+            start_indices = indices['Start']
+
+        FV_indices = indices['FV']
+        end_indices = indices['End']
+
+        baseline_data = analog_data_swap.iloc[start_indices:FV_indices]
+        odor_data = analog_data_swap.iloc[FV_indices:end_indices]
 
         baseline_data_bits = baseline_data['samples'].tolist()
-        start_data_bits = start_data['samples'].tolist()
-        end_data_bits = end_data['samples'].tolist()
-
         baseline_data_volts = baseline_data['samples_volts'].tolist()
-        start_data_volts = start_data['samples_volts'].tolist()
-        end_data_volts = end_data['samples_volts'].tolist()
-
         baseline_data_bits = np.hstack(baseline_data_bits)
-        start_data_bits = np.hstack(start_data_bits)
-        end_data_bits = np.hstack(end_data_bits)
-
         baseline_data_volts = np.hstack(baseline_data_volts)
-        start_data_volts = np.hstack(start_data_volts)
-        end_data_volts = np.hstack(end_data_volts)
+
+        odor_data_bits = odor_data['samples'].tolist()
+        odor_data_volts = odor_data['samples_volts'].tolist()
+        odor_data_bits = np.hstack(odor_data_bits)
+        odor_data_volts = np.hstack(odor_data_volts)
 
         trial_data['baseline_bits'].append(baseline_data_bits)
-        trial_data['start_bits'].append(start_data_bits)
-        trial_data['end_bits'].append(end_data_bits)
+        trial_data['odor_bits'].append(odor_data_bits)
 
         trial_data['baseline_volts'].append(baseline_data_volts)
-        trial_data['start_volts'].append(start_data_volts)
-        trial_data['end_volts'].append(end_data_volts)
+        trial_data['odor_volts'].append(odor_data_volts)
 
     trial_data = pd.DataFrame(trial_data)
 
@@ -133,12 +124,14 @@ def preprocess_analog_swap(analog_data_swap):
 def get_sync_bytes(analog_data_swap):
     sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
 
-    trial_start_bytes = sync_bytes.index[sync_bytes == 83]
-    FV_on_bytes = sync_bytes.index[sync_bytes == 70]
-    trial_end_bytes = sync_bytes.index[sync_bytes == 69]
+    baseline_start_bytes = sync_bytes.index[sync_bytes == 66]   # B(aseline)
+    trial_start_bytes = sync_bytes.index[sync_bytes == 83]      # S(tart)
+    FV_on_bytes = sync_bytes.index[sync_bytes == 70]            # F(inal Valve)
+    trial_end_bytes = sync_bytes.index[sync_bytes == 69]        # E(nd)
 
-    sync_bytes_per_trial = pd.DataFrame(np.transpose([trial_start_bytes, FV_on_bytes, trial_end_bytes]),
-                                        columns=['Start', 'FV', 'End'])
+    sync_bytes_per_trial = pd.DataFrame(np.transpose([baseline_start_bytes,
+                                                      trial_start_bytes, FV_on_bytes, trial_end_bytes]),
+                                        columns=['Baseline', 'Start', 'FV', 'End'])
     sync_bytes_columns = sync_bytes_per_trial.columns
     lengths = []
 
@@ -173,4 +166,3 @@ def load_mat(path: pathlib.Path) -> dict:
         return mat_file
 
     return mat_file
-

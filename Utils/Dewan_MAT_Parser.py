@@ -68,6 +68,11 @@ def parse_analog_data(session_data):
 
     sync_bytes = get_sync_bytes(analog_data_swap)
 
+    baseline_indices = sync_bytes['baseline']
+    start_indices = sync_bytes['start']
+    FV_indices = sync_bytes['FV']
+    end_indices = sync_bytes['end']
+
     trial_data = {  # Should really use more dicts
         'baseline_bits': [],
         'odor_bits': [],
@@ -75,21 +80,14 @@ def parse_analog_data(session_data):
         'odor_volts': [],
     }
 
-    for each in sync_bytes.index.tolist():
-        indices = sync_bytes.iloc[each]
+    for i in range(len(FV_indices)):
 
-        baseline_indices = indices['baseline']
+        start_index = baseline_indices[i]
+        FV_index = FV_indices[i]
+        end_index = end_indices[i]
 
-        if len(baseline_indices) > 0:  # If there is somehow no baseline indices, use the odor start index
-            start_indices = baseline_indices
-        else:
-            start_indices = indices['start']
-
-        FV_indices = indices['FV']
-        end_indices = indices['end']
-
-        baseline_data = analog_data_swap.iloc[start_indices:FV_indices]
-        odor_data = analog_data_swap.iloc[FV_indices:end_indices]
+        baseline_data = analog_data_swap.iloc[start_index:FV_index]
+        odor_data = analog_data_swap.iloc[FV_index:end_index]
 
         baseline_data_bits = baseline_data['samples'].tolist()
         baseline_data_volts = baseline_data['samples_volts'].tolist()
@@ -132,7 +130,7 @@ def get_sync_bytes(analog_data_swap):
 
     all_sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
 
-    sync_bytes['baseline'] = all_sync_bytes.index[all_sync_bytes == 63]   # B(aseline)
+    sync_bytes['baseline'] = all_sync_bytes.index[all_sync_bytes == 66]   # B(aseline)
     sync_bytes['start'] = all_sync_bytes.index[all_sync_bytes == 83]      # S(tart)
     sync_bytes['FV'] = all_sync_bytes.index[all_sync_bytes == 70]            # F(inal Valve)
     sync_bytes['end'] = all_sync_bytes.index[all_sync_bytes == 69]        # E(nd)

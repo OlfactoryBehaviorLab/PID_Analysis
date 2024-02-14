@@ -72,12 +72,14 @@ def parse_analog_data(session_data):
     start_indices = sync_bytes['start']
     FV_indices = sync_bytes['FV']
     end_indices = sync_bytes['end']
+    iti_indices = sync_bytes['ITI']
 
     trial_data = {  # Should really use more dicts
         'baseline_bits': [],
         'odor_bits': [],
         'baseline_volts': [],
         'odor_volts': [],
+        'end_bits': [],
     }
 
     for i in range(len(FV_indices)):
@@ -85,9 +87,11 @@ def parse_analog_data(session_data):
         start_index = baseline_indices[i]
         FV_index = FV_indices[i]
         end_index = end_indices[i]
+        iti_index = iti_indices[i]
 
         baseline_data = analog_data_swap.iloc[start_index:FV_index]
         odor_data = analog_data_swap.iloc[FV_index:end_index]
+        end_bits = analog_data_swap.iloc[end_index:iti_index]
 
         baseline_data_bits = baseline_data['samples'].tolist()
         baseline_data_volts = baseline_data['samples_volts'].tolist()
@@ -99,11 +103,16 @@ def parse_analog_data(session_data):
         odor_data_bits = np.hstack(odor_data_bits)
         odor_data_volts = np.hstack(odor_data_volts)
 
+        end_bits = end_bits['samples'].tolist()
+        end_bits = np.hstack(end_bits)
+
         trial_data['baseline_bits'].append(baseline_data_bits)
         trial_data['odor_bits'].append(odor_data_bits)
 
         trial_data['baseline_volts'].append(baseline_data_volts)
         trial_data['odor_volts'].append(odor_data_volts)
+
+        trial_data['end_bits'].append(end_bits)
 
     trial_data = pd.DataFrame(trial_data)
 
@@ -125,15 +134,17 @@ def get_sync_bytes(analog_data_swap):
         'baseline': [],
         'start': [],
         'FV': [],
-        'end': []
+        'end': [],
+        'ITI': []
     }
 
     all_sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
 
-    sync_bytes['baseline'] = all_sync_bytes.index[all_sync_bytes == 66]   # B(aseline)
-    sync_bytes['start'] = all_sync_bytes.index[all_sync_bytes == 83]      # S(tart)
-    sync_bytes['FV'] = all_sync_bytes.index[all_sync_bytes == 70]            # F(inal Valve)
-    sync_bytes['end'] = all_sync_bytes.index[all_sync_bytes == 69]        # E(nd)
+    sync_bytes['baseline'] = all_sync_bytes.index[all_sync_bytes == 66]     # B(aseline)
+    sync_bytes['start'] = all_sync_bytes.index[all_sync_bytes == 83]        # S(tart)
+    sync_bytes['FV'] = all_sync_bytes.index[all_sync_bytes == 70]           # F(inal Valve)
+    sync_bytes['end'] = all_sync_bytes.index[all_sync_bytes == 69]          # E(nd)
+    sync_bytes['ITI'] = all_sync_bytes.index[all_sync_bytes == 73]          # I(TI)
 
     lengths = [len(sync_bytes[each]) for each in sync_bytes.keys()]
     all_equal = np.array_equal(lengths, lengths)

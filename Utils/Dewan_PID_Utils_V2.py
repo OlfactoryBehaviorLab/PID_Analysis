@@ -1,9 +1,7 @@
-import h5py
 import os
 import pandas as pd
-import numpy as np
 import PySimpleGUI as sg
-
+from pathlib import Path
 
 # def get_sniff_data(h5_file, trial_name):
 #     event_data = h5_file[f'{trial_name}/Events']
@@ -54,6 +52,9 @@ def get_file(path=None) -> (str, str, str):
         filename = sg.popup_get_file("Select MAT File...", file_types=(("MAT Files", "*.mat"), ("All Files", "*.*")))
     else:
         filename = path
+
+    if filename is None:
+        raise FileNotFoundError('No file selected!')
     file_stem = os.path.basename(filename)
     file_folder = os.path.dirname(filename)
     # Get file stem to name output files; and file folder to save output files to
@@ -61,13 +62,23 @@ def get_file(path=None) -> (str, str, str):
 
 
 def save_data(file_name_stem, file_folder, data, fig):
-    column_labels = ['OdorConcentration', 'PIDPump', 'PIDGain', 'PeakPIDResponse', ' AveragePIDResponse', 'odorVial',
-                     'Carrier_flowrate', 'Diluter_flowrate', 'Odor Preduration', 'Odor Duration', 'PIDSpace', 'OdorName']
-    output = pd.DataFrame(data, columns=column_labels)
-    file_path = os.path.join(file_folder, 'XLSX', f'{file_name_stem}.xlsx')
-    fig_path = os.path.join(file_folder, 'Figures', f'{file_name_stem}.png')
+   # column_labels = ['OdorConcentration', 'PIDPump', 'PIDGain', 'PeakPIDResponse', ' AveragePIDResponse', 'odorVial',
+   #                 'Carrier_flowrate', 'Diluter_flowrate', 'Odor Preduration', 'Odor Duration', 'PIDSpace', 'OdorName']
+   # output = pd.DataFrame(data, columns=column_labels)
+    excel_folder = Path(file_folder).joinpath('XLSX')
+    figure_folder = Path(file_folder).joinpath('Figures')
+
+
+    if not excel_folder.exists():
+        excel_folder.mkdir(parents=True)
+    if not figure_folder.exists():
+        figure_folder.mkdir(parents=True)
+
+    file_path = excel_folder.joinpath(f'{file_name_stem}.xlsx')
+    fig_path = figure_folder.joinpath(f'{file_name_stem}.png')
+
     fig.savefig(fig_path, dpi=600)
-    output.to_excel(file_path, index=False)
+    data.to_excel(file_path, index=False)
 
 
 def save_figure(file_name_stem, file_folder, fig):

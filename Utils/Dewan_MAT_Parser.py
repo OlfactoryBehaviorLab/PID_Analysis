@@ -39,7 +39,7 @@ def parse_experiment_info(session_data) -> pd.DataFrame:
 def parse_settings(session_data) -> pd.DataFrame:
     settings = session_data['Settings'][0][0]  # Grab settings list that is deeply nested
     settings = pd.DataFrame(settings)  # Convert to dataframe
-    settings = settings.applymap(lambda x: x[0][0])
+    settings = settings.map(lambda x: x[0][0])
     # Each data point is wrapped in a double array [[data]]; lambda function applied to each data point where the
     # double array is removed
     return settings
@@ -48,8 +48,8 @@ def parse_settings(session_data) -> pd.DataFrame:
 def parse_session_info(session_data) -> pd.DataFrame:
     info = session_data['Info'][0][0]
     info = pd.DataFrame(info)
-    info = info.applymap(np.ravel)
-    info = info.applymap(lambda x: x[0])
+    info = info.map(np.ravel)
+    info = info.map(lambda x: x[0])
 
     firmware = info['Firmware']
     firmware = array_to_version_number(firmware)

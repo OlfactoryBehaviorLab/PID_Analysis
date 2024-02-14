@@ -9,49 +9,42 @@ def main():
     data = []
     y_vals = []
     x_vals = []
-
-    time_to_average = 1500  # Time in MS to average before the FV turns off
-    extra_plot_end = 2000
+    fig, ax1 = plt.subplots()
 
     file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
     bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
 
-    experiment_type = bpod_data['experiment']['session_type']
+    # experiment_type = bpod_data['experiment']['session_type']
     settings = bpod_data['settings']
+    num_trials = len(settings)
 
+    for i in range(num_trials):
 
-    fig, ax1 = plt.subplots()
+        trial_settings = settings.iloc[i]
+        odor_duration = trial_settings['odor_duration']
+        gain = trial_settings['pid_gain']
+        carrier_flowrate = trial_settings['carrier_MFC']
 
+        trial_data = bpod_data['data'].iloc[i]
 
-    for i, trial in enumerate(settings):
+        baseline = np.mean(trial_data['baseline_bits'])
+        odor_data = trial_data['odor_bits']
+        odor_data_baseline_shift = np.subtract(odor_data, baseline)
 
+        peak_PID_response = np.max(odor_data_baseline_shift)
+        average_PID_response = np.mean(odor_data_baseline_shift)
 
-        FV_on_time = final_valve_on_time[i]
-        odor_dur = odor_duration[i]
+        # plot_end = average_range_end + extra_plot_end
+        # plot_roi = Dewan_PID_Utils.get_roi(baseline_start, plot_end, time_stamp_array)
+        num_data_points = len(odor_data_baseline_shift)
+        x_values = np.linspace(-2, settings.iloc[0]['odor_duration']/1000, num_data_points)
 
-        baseline_start = FV_on_time - 1100
-        baseline_end = FV_on_time - 100
-        baseline_index = Dewan_PID_Utils.get_roi(baseline_start, baseline_end, time_stamp_array)
-
-        baseline = np.mean(sniff_data_array[baseline_index])
-        sniff_data_array = np.subtract(sniff_data_array, baseline)
-
-        peak_PID_response = np.max(sniff_data_array)
-        average_range_end = FV_on_time + odor_dur
-        average_range_start = average_range_end - time_to_average
-
-        average_response_indexes = Dewan_PID_Utils.get_roi(average_range_start, average_range_end, time_stamp_array)
-        average_PID_response = np.mean(sniff_data_array[average_response_indexes])
-
-        plot_end = average_range_end + extra_plot_end
-        plot_roi = Dewan_PID_Utils.get_roi(baseline_start, plot_end, time_stamp_array)
-
-        x_values = (time_stamp_array[plot_roi] - final_valve_on_time[i]) / 1000
+        #x_values = (time_stamp_array[plot_roi] - final_valve_on_time[i]) / 1000
         x_vals.append(max(x_values))
         x_vals.append(min(x_values))
 
-        y_values = sniff_data_array[plot_roi] / pid_gain[i]
-        y_values = y_values / (carrier_flowrate[i] / 900)
+        y_values = odor_data_baseline_shift / gain
+        y_values = y_values / (carrier_flowrate / 900)
         y_values = y_values * 4.8828
         y_vals.append(max(y_values))
 
@@ -65,7 +58,6 @@ def main():
 
         data.append(row_data)
 
-    h5_file.close()
 
     ax1.set_ylim([0, max(y_vals) + (max(y_vals) * 0.05)])
     ax1.set_xlim([min(x_vals), max(x_vals)])

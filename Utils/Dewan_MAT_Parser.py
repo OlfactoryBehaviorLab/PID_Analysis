@@ -39,7 +39,7 @@ def parse_experiment_info(session_data) -> pd.DataFrame:
 def parse_settings(session_data) -> pd.DataFrame:
     settings = session_data['Settings'][0][0]  # Grab settings list that is deeply nested
     settings = pd.DataFrame(settings)  # Convert to dataframe
-    settings = settings.map(lambda x: x[0][0])
+    settings = settings.map(lambda x: x[0])
     # Each data point is wrapped in a double array [[data]]; lambda function applied to each data point where the
     # double array is removed
     return settings

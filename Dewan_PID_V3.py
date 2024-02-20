@@ -27,8 +27,9 @@ def main():
     for i in range(num_trials):
 
         trial_settings = settings.iloc[i]
-        odor_duration = trial_settings['odor_duration'] # TODO: fix the gain in the parser
-        gain = trial_settings['pid_gain']
+        odor_duration = trial_settings['odor_duration']
+        gain_str = trial_settings['pid_gain'][1:]
+        gain = np.double(gain_str)
         carrier_flowrate = trial_settings['carrier_MFC']
 
         trial_data = bpod_data['data'].iloc[i]
@@ -54,9 +55,9 @@ def main():
         x_values = np.linspace(-2, 4,  number_items)
 
         y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift))
-        #y_values = y_values / gain
+        y_values = y_values / gain
         y_values = y_values / (carrier_flowrate / 900)
-        y_values = y_values * 4.8828
+        y_values = y_values * 4.8828 # TODO: Find new value for Bpod setup
         y_vals.append(max(y_values))
 
         # you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....

@@ -49,18 +49,19 @@ def main():
         pre_trial_len = len(baseline_data_baseline_shift)
         trial_len = len(odor_data_baseline_shift)
         post_trial_time = len(end_data_baseline_shift)
-
         number_items = pre_trial_len + trial_len + post_trial_time
-
-        x_values = np.linspace(-2, 4,  number_items)
+        
+        x_values = np.arange(-pre_trial_len, (trial_len + post_trial_time))
 
         y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift))
         y_values = y_values / gain
         y_values = y_values / (carrier_flowrate / 900)
         y_values = y_values * 4.8828 # TODO: Find new value for Bpod setup
-        y_vals.append(max(y_values))
 
-        # you can fit a line to any dataset if you try hard enough. In this case, 1,000,000 times....
+        y_vals.append(max(y_values))
+        x_vals.append(min(x_values))
+        x_vals.append(max(x_values))
+
         ax1.plot(x_values, y_values, linewidth=0.5)
 
         row_data = np.hstack((peak_PID_response, average_PID_response))
@@ -69,16 +70,23 @@ def main():
 
 
     ax1.set_ylim([0, (max(y_vals) * 1.05)])
-    ax1.set_xlim([-2.5, 4.5])
+    x_max = max(x_values)
+    x_min = min(x_values)
 
-    #x_ticks = np.arange(round(min(x_vals)), round(max(x_vals)) + 1)
-    x_ticks = np.arange(-2, 4)
-    plt.xticks(x_ticks)
+    x_tick_min = round(x_min, -3)
+    x_tick_max = round(x_max, -3)
+
+    x_ticks = np.linspace(x_tick_min, x_tick_max, 7)
+    ax1.set_xticks(x_ticks, labels = np.arange(-2, 5))
+    ax1.set_xlim([x_tick_min, x_tick_max*1.05])
 
     PID_Data = pd.DataFrame(PID_Data, columns=['PID Peak', 'PID Avg'])
     combined_data = settings.join(PID_Data)
 
-    Dewan_PID_Utils_V2.save_data(file_name_stem, file_folder, combined_data, fig)
+    fig.savefig('test.png')
+
+    #Dewan_PID_Utils_V2.save_data(file_name_stem, file_folder, combined_data, fig)
+
 
 if __name__ == "__main__":
     main()

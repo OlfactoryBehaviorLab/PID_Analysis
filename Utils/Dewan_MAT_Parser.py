@@ -68,11 +68,11 @@ def parse_analog_data(session_data):
 
     sync_bytes = get_sync_bytes(analog_data_swap)
 
-    baseline_indices = sync_bytes['baseline']
-    start_indices = sync_bytes['start']
-    FV_indices = sync_bytes['FV']
-    end_indices = sync_bytes['end']
-    iti_indices = sync_bytes['ITI']
+    baseline_indices = sync_bytes['baseline'][0]
+    start_indices = sync_bytes['start'][0]
+    FV_indices = sync_bytes['FV'][0]
+    end_indices = sync_bytes['end'][0]
+    iti_indices = sync_bytes['ITI'][0]
 
     trial_data = {  # Should really use more dicts
         'baseline_bits': [],
@@ -88,6 +88,7 @@ def parse_analog_data(session_data):
         FV_index = FV_indices[i]
         end_index = end_indices[i]
         iti_index = iti_indices[i]
+
 
         baseline_data = analog_data_swap.iloc[start_index:FV_index]
         odor_data = analog_data_swap.iloc[FV_index:end_index]
@@ -139,13 +140,16 @@ def get_sync_bytes(analog_data_swap):
     }
 
     all_sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
+    all_sync_bytes = [0 if sync_byte.size < 1 else sync_byte for sync_byte in all_sync_bytes]
+    all_sync_bytes = remove_double_sync_bytes(all_sync_bytes)
+    all_sync_bytes = np.array(all_sync_bytes)
 
-    sync_bytes['baseline'] = all_sync_bytes.index[all_sync_bytes == 66]     # B(aseline)
-    sync_bytes['start'] = all_sync_bytes.index[all_sync_bytes == 83]        # S(tart)
-    sync_bytes['FV'] = all_sync_bytes.index[all_sync_bytes == 70]           # F(inal Valve)
-    sync_bytes['end'] = all_sync_bytes.index[all_sync_bytes == 69]          # E(nd)
-    sync_bytes['ITI'] = all_sync_bytes.index[all_sync_bytes == 73]          # I(TI)
 
+    sync_bytes['baseline'] = np.where(all_sync_bytes == 67)   # B(aseline)
+    sync_bytes['start'] = np.where(all_sync_bytes == 83)      # S(tart)
+    sync_bytes['FV'] = np.where(all_sync_bytes == 70 )        # F(inal Valve)
+    sync_bytes['end'] = np.where(all_sync_bytes == 69)        # E(nd)
+    sync_bytes['ITI'] = np.where(all_sync_bytes == 73)        # I(TI)
     lengths = [len(sync_bytes[each]) for each in sync_bytes.keys()]
     all_equal = np.array_equal(lengths, lengths)
 

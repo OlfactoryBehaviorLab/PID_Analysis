@@ -4,33 +4,46 @@ from Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
 import pandas as pd
 
 plt.rcParams['figure.dpi'] = 600
-
+CF_ITI = 2 # The Trial ITI should always be 2s for a CF
+TOTAL_PREDURATION = 2 # The total time before a trial will almost always be 2s before odor measurement
 
 def main():
     PID_Data = []
     y_vals = []
     x_vals = []
+    iti = 0
+
     fig, ax1 = plt.subplots()
 
-    try:
-        file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
-    except FileNotFoundError as e:
-        print(e)
-        return
+    # try:
+    #     file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
+    # except FileNotFoundError as e:
+    #     print(e)
+    #     return
+
+    file_path = 'R:\\4_PID_CF\\Bpod\\CF\\2-Butanol_CF_Alex_Fix.mat'
 
     bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
 
-    # experiment_type = bpod_data['experiment']['session_type']
+    experiment_type = bpod_data['experiment']['session_type']
     settings = bpod_data['settings']
     num_trials = len(settings)
+
+    match experiment_type.values:
+        case 'CF':
+            iti = CF_ITI
+        case _:
+            iti = 2
 
     for i in range(num_trials):
 
         trial_settings = settings.iloc[i]
-        odor_duration = trial_settings['odor_duration']
+
         gain_str = trial_settings['pid_gain'][1:]
         gain = np.double(gain_str)
         carrier_flowrate = trial_settings['carrier_MFC']
+        #odor_preduration = trial_settings['odor_preduration']
+        odor_duration = trial_settings['odor_duration']
 
         trial_data = bpod_data['data'].iloc[i]
 

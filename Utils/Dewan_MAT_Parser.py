@@ -81,18 +81,23 @@ def parse_analog_data(session_data):
         'odor_volts': [],
         'end_bits': [],
     }
+    number_trials = len(FV_indices)
 
-    for i in range(len(FV_indices)):
+    for i in range(number_trials):
 
         start_index = baseline_indices[i]
         FV_index = FV_indices[i]
         end_index = end_indices[i]
-        iti_index = iti_indices[i]
+        iti_start_index = iti_indices[i]
 
+        if i == (number_trials - 1):
+            iti_end_index = -1
+        else:
+            iti_end_index = baseline_indices[i+1]
 
         baseline_data = analog_data_swap.iloc[start_index:FV_index]
         odor_data = analog_data_swap.iloc[FV_index:end_index]
-        end_bits = analog_data_swap.iloc[end_index:iti_index]
+        end_bits = analog_data_swap.iloc[iti_start_index:iti_end_index]
 
         baseline_data_bits = baseline_data['samples'].tolist()
         baseline_data_volts = baseline_data['samples_volts'].tolist()

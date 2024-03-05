@@ -157,6 +157,24 @@ def get_sync_bytes(analog_data_swap):
     return sync_bytes_per_trial
 
 
+def remove_double_sync_bytes(all_sync_bytes):
+    # Occasionally, two sync bytes will occupy one time point due to our polling frequency
+    # We will take the first byte, and move it to the index n-1
+    # While not perfectly accurate, our polling rate is significantly higher than the response rate of
+    # the PID sensor, so this is not a concern
+
+    for i, each in enumerate(all_sync_bytes):
+        if(type(each) == int):
+            continue
+        elif(each.size == 1):
+            all_sync_bytes[i] = each.item()
+        else:
+            all_sync_bytes[i-1] = each[0]
+            all_sync_bytes[i] = each[1]
+
+    return all_sync_bytes
+
+
 def array_to_version_number(array):
     array = array.apply(np.hstack).apply(np.ravel)[0]
     array = '.'.join(list(array.astype(str)))

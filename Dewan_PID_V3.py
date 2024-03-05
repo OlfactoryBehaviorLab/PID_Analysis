@@ -11,7 +11,6 @@ def main():
     PID_Data = []
     y_vals = []
     x_vals = []
-    iti = 0
 
     fig, ax1 = plt.subplots()
 
@@ -25,18 +24,12 @@ def main():
     bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
 
     experiment_params = bpod_data['experiment']
-    experiment_type = experiment_params['session_type']
+    experiment_type = experiment_params['session_type'][0]
     odor_name = experiment_params['odor'][0]
     experimenter_name = experiment_params['name'][0]
 
     settings = bpod_data['settings']
     num_trials = len(settings)
-
-    match experiment_type.values:
-        case 'CF':
-            iti = CF_ITI
-        case _:
-            iti = 2
 
     for i in range(num_trials):
 
@@ -45,8 +38,6 @@ def main():
         gain_str = trial_settings['pid_gain'][1:]
         gain = np.double(gain_str)
         carrier_flowrate = trial_settings['carrier_MFC']
-        #odor_preduration = trial_settings['odor_preduration']
-        odor_duration = trial_settings['odor_duration']
 
         trial_data = bpod_data['data'].iloc[i]
 
@@ -65,7 +56,6 @@ def main():
         pre_trial_len = len(baseline_data_baseline_shift)
         trial_len = len(odor_data_baseline_shift)
         post_trial_time = len(end_data_baseline_shift)
-        number_items = pre_trial_len + trial_len + post_trial_time
         
         x_values = np.arange(-pre_trial_len, (trial_len + post_trial_time))
 
@@ -98,7 +88,7 @@ def main():
 
     ax1.set_xlabel('Time since FV (s)')
     ax1.set_ylabel('Signal (Trial - Baseline)')
-    plt.title(f'{odor_name}-{experimenter_name}')
+    plt.title(f'{odor_name}-{experiment_type}-{experimenter_name}')
 
     plt.tight_layout()
 

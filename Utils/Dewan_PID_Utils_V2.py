@@ -2,22 +2,29 @@ from pathlib import Path
 from tkinter import filedialog
 
 
-def get_file(path=None) -> tuple[str, str, str]:
-    if path is None:
-        file_path = filedialog.askopenfilename(title='Select a File', filetypes=[('MAT files', '*.mat'), ('All Files', '*.*')])
+def get_file(paths=None) -> list[tuple]:
+    
+    if paths is None:
+        file_paths = filedialog.askopenfilenames(title='Select a File', filetypes=[('MAT files', '*.mat'), ('All Files', '*.*')])
     else:
-        file_path = path
+        file_paths = paths
 
-    if file_path is None:
+    if file_paths is None:
         raise FileNotFoundError('No file selected!')
     
-    path = Path(file_path)
+    return_paths = []
 
-    file_stem = str(path.stem)
-    file_folder = str(path.parent)
-    file_path = str(path)
-    # Get file stem to name output files; and file folder to save output files to
-    return file_path, file_stem, file_folder
+    for each in file_paths:
+        path = Path(each)
+
+        file_stem = str(path.stem)
+        file_folder = str(path.parent)
+        file_path = str(path)
+        # Get file stem to name output files; and file folder to save output files to
+
+        return_paths.append((file_path, file_stem, file_folder))
+
+    return return_paths
 
 
 def save_data(file_name_stem, file_folder, data, fig):

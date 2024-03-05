@@ -15,17 +15,20 @@ def main():
 
     fig, ax1 = plt.subplots()
 
-    # try:
-    #     file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
-    # except FileNotFoundError as e:
-    #     print(e)
-    #     return
+    try:
+        file_path, file_name_stem, file_folder = Dewan_PID_Utils_V2.get_file()
+    except FileNotFoundError as e:
+        print(e)
+        return
 
-    file_path = 'R:\\4_PID_CF\\Bpod\\CF\\2-Butanol_CF_Alex_Fix.mat'
 
     bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
 
-    experiment_type = bpod_data['experiment']['session_type']
+    experiment_params = bpod_data['experiment']
+    experiment_type = experiment_params['session_type']
+    odor_name = experiment_params['odor'][0]
+    experimenter_name = experiment_params['name'][0]
+
     settings = bpod_data['settings']
     num_trials = len(settings)
 
@@ -82,7 +85,6 @@ def main():
         PID_Data.append(row_data)
 
 
-    ax1.set_ylim([0, (max(y_vals) * 1.05)])
     x_max = max(x_values)
     x_min = min(x_values)
 
@@ -91,14 +93,19 @@ def main():
 
     x_ticks = np.linspace(x_tick_min, x_tick_max, 7)
     ax1.set_xticks(x_ticks, labels = np.arange(-2, 5))
-    ax1.set_xlim([x_tick_min, x_tick_max*1.05])
+    ax1.set_xlim([x_tick_min, x_tick_max * 1.05])
+    ax1.set_ylim([-300, (max(y_vals) * 1.05)])
+
+    ax1.set_xlabel('Time since FV (s)')
+    ax1.set_ylabel('Signal (Trial - Baseline)')
+    plt.title(f'{odor_name}-{experimenter_name}')
+
+    plt.tight_layout()
 
     PID_Data = pd.DataFrame(PID_Data, columns=['PID Peak', 'PID Avg'])
     combined_data = settings.join(PID_Data)
 
-    fig.savefig('test.png')
-
-    #Dewan_PID_Utils_V2.save_data(file_name_stem, file_folder, combined_data, fig)
+    Dewan_PID_Utils_V2.save_data(file_name_stem, file_folder, combined_data, fig)
 
 
 if __name__ == "__main__":

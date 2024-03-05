@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
 import pandas as pd
+
+from tqdm import trange
+from Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
+
 
 plt.rcParams['figure.dpi'] = 600
 CF_ITI = 2 # The Trial ITI should always be 2s for a CF
@@ -31,7 +34,9 @@ def main():
     settings = bpod_data['settings']
     num_trials = len(settings)
 
-    for i in range(num_trials):
+    print(f'Processing {experiment_type} for {odor_name} run by {experimenter_name}...')
+
+    for i in trange(num_trials):
 
         trial_settings = settings.iloc[i]
 
@@ -97,6 +102,7 @@ def main():
 
     Dewan_PID_Utils_V2.save_data(file_name_stem, file_folder, combined_data, fig)
 
+    print('Done processing!')
 
 if __name__ == "__main__":
     main()

@@ -5,7 +5,9 @@ from tkinter import filedialog
 def get_file(paths=None) -> list[tuple]:
     
     if paths is None:
-        file_paths = filedialog.askopenfilenames(title='Select a File', filetypes=[('MAT files', '*.mat'), ('All Files', '*.*')])
+        file_paths = filedialog.askopenfilenames(
+            title='Select a File', filetypes=[('MAT files', '*.mat'), ('All Files', '*.*')]
+        )
     else:
         file_paths = paths
 
@@ -46,5 +48,5 @@ def save_data(file_name_stem, file_folder, data, fig):
 
 
 def save_figure(file_name_stem, file_folder, fig):
-    fig_path = os.path.join(file_folder, 'Figures', f'{file_name_stem}.pdf')
+    fig_path = Path(file_folder, 'Figures', f'{file_name_stem}.pdf')
     fig.savefig(fig_path, transparent=True, dpi=300)

@@ -10,15 +10,16 @@ plt.rcParams['figure.dpi'] = 600
 CF_ITI = 2 # The Trial ITI should always be 2s for a CF
 TOTAL_PREDURATION = 2 # The total time before a trial will almost always be 2s before odor measurement
 
+
 def main():
 
     try:
-        file_paths = tools.get_file() # Get list of file(s)
+        file_paths = tools.get_file()  # Get list of file(s)
     except FileNotFoundError as e:
         print(e)
         return
 
-    for file_container in file_paths: # Loop through selected file(s)
+    for file_container in file_paths:  # Loop through selected file(s)
         try:
             process_file(file_container)
         except Exception as e:
@@ -91,8 +92,8 @@ def process_file(file_container):
 
         PID_Data.append(row_data)
 
-    x_max = max(x_values)
-    x_min = min(x_values)
+    x_max = max(x_vals)
+    x_min = min(x_vals)
 
     x_tick_min = round(x_min, -3)
     x_tick_max = round(x_max, -3)

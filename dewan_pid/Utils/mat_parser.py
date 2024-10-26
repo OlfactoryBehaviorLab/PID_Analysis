@@ -69,12 +69,11 @@ def parse_analog_data(session_data):
     sync_bytes = get_sync_bytes(analog_data_swap)
 
     baseline_indices = sync_bytes['baseline'][0]
-    start_indices = sync_bytes['start'][0]
     FV_indices = sync_bytes['FV'][0]
     end_indices = sync_bytes['end'][0]
     iti_indices = sync_bytes['ITI'][0]
 
-    trial_data = {  # Should really use more dicts
+    trial_data = {  # Should really use more dicts; future Austin reports more dicts (10/25/24)
         'baseline_bits': [],
         'odor_bits': [],
         'baseline_volts': [],
@@ -93,7 +92,7 @@ def parse_analog_data(session_data):
         if i == (number_trials - 1):
             iti_end_index = -1
         else:
-            iti_end_index = baseline_indices[i+1]
+            iti_end_index = baseline_indices[i + 1]
 
         baseline_data = analog_data_swap.iloc[start_index:FV_index]
         odor_data = analog_data_swap.iloc[FV_index:end_index]
@@ -135,7 +134,6 @@ def preprocess_analog_swap(analog_data_swap):
 
 
 def get_sync_bytes(analog_data_swap):
-
     sync_bytes = {
         'baseline': [],
         'start': [],
@@ -149,12 +147,11 @@ def get_sync_bytes(analog_data_swap):
     all_sync_bytes = remove_double_sync_bytes(all_sync_bytes)
     all_sync_bytes = np.array(all_sync_bytes)
 
-
-    sync_bytes['baseline'] = np.where(all_sync_bytes == 67)   # B(aseline)
-    sync_bytes['start'] = np.where(all_sync_bytes == 83)      # S(tart)
-    sync_bytes['FV'] = np.where(all_sync_bytes == 70 )        # F(inal Valve)
-    sync_bytes['end'] = np.where(all_sync_bytes == 69)        # E(nd)
-    sync_bytes['ITI'] = np.where(all_sync_bytes == 73)        # I(TI)
+    sync_bytes['baseline'] = np.where(all_sync_bytes == 67)  # B(aseline)
+    sync_bytes['start'] = np.where(all_sync_bytes == 83)  # S(tart)
+    sync_bytes['FV'] = np.where(all_sync_bytes == 70)  # F(inal Valve)
+    sync_bytes['end'] = np.where(all_sync_bytes == 69)  # E(nd)
+    sync_bytes['ITI'] = np.where(all_sync_bytes == 73)  # I(TI)
     lengths = [len(sync_bytes[each]) for each in sync_bytes.keys()]
     all_equal = np.array_equal(lengths, lengths)
 
@@ -173,12 +170,12 @@ def remove_double_sync_bytes(all_sync_bytes):
     # the PID sensor, so this is not a concern
 
     for i, each in enumerate(all_sync_bytes):
-        if(type(each) == int):
+        if each is int:
             continue
-        elif(each.size == 1):
+        elif each.size == 1:
             all_sync_bytes[i] = each.item()
         else:
-            all_sync_bytes[i-1] = each[0]
+            all_sync_bytes[i - 1] = each[0]
             all_sync_bytes[i] = each[1]
 
     return all_sync_bytes
@@ -195,12 +192,12 @@ def load_mat(path: pathlib.Path) -> dict:
     mat_file = []
     try:
         mat_file = sio.loadmat(str(path))
-    except FileNotFoundError as e:
-        print(e.strerror)
+    except FileNotFoundError as fnfe:
+        print(fnfe.strerror)
         print(f'File at path {path} does not exist!')
         return mat_file
-    except TypeError as e2:
-        print(e2.with_traceback)
+    except TypeError as te:
+        print(te.with_traceback)
         return mat_file
 
     return mat_file

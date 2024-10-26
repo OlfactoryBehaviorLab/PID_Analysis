@@ -20,11 +20,7 @@ def main():
         return
 
     for file_container in file_paths:  # Loop through selected file(s)
-        try:
-            process_file(file_container)
-        except Exception as e:
-            print(e)
-            continue
+        process_file(file_container)
 
     print('Done processing!')
 
@@ -43,9 +39,8 @@ def process_file(file_container):
     experiment_type = experiment_params['session_type'][0]
     odor_name = experiment_params['odor'][0]
     experimenter_name = experiment_params['name'][0]
-
+    num_trials = bpod_data['data']['num_trials'][0]
     settings = bpod_data['settings']
-    num_trials = len(settings)
 
     print(f'Processing {experiment_type} for {odor_name} run by {experimenter_name}...')
 

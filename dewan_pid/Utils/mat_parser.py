@@ -79,45 +79,49 @@ def parse_analog_data(session_data):
         'baseline_volts': [],
         'odor_volts': [],
         'end_bits': [],
+        'num_trials': 0
     }
     number_trials = len(FV_indices)
 
     for i in range(number_trials):
+        try:
+            start_index = baseline_indices[i]
+            FV_index = FV_indices[i]
+            end_index = end_indices[i]
+            iti_start_index = iti_indices[i]
 
-        start_index = baseline_indices[i]
-        FV_index = FV_indices[i]
-        end_index = end_indices[i]
-        iti_start_index = iti_indices[i]
+            if i == (number_trials - 1):
+                iti_end_index = -1
+            else:
+                iti_end_index = baseline_indices[i + 1]
 
-        if i == (number_trials - 1):
-            iti_end_index = -1
-        else:
-            iti_end_index = baseline_indices[i + 1]
+            baseline_data = analog_data_swap.iloc[start_index:FV_index]
+            odor_data = analog_data_swap.iloc[FV_index:end_index]
+            end_bits = analog_data_swap.iloc[iti_start_index:iti_end_index]
 
-        baseline_data = analog_data_swap.iloc[start_index:FV_index]
-        odor_data = analog_data_swap.iloc[FV_index:end_index]
-        end_bits = analog_data_swap.iloc[iti_start_index:iti_end_index]
+            baseline_data_bits = baseline_data['samples'].tolist()
+            baseline_data_volts = baseline_data['samples_volts'].tolist()
+            baseline_data_bits = np.hstack(baseline_data_bits)
+            baseline_data_volts = np.hstack(baseline_data_volts)
 
-        baseline_data_bits = baseline_data['samples'].tolist()
-        baseline_data_volts = baseline_data['samples_volts'].tolist()
-        baseline_data_bits = np.hstack(baseline_data_bits)
-        baseline_data_volts = np.hstack(baseline_data_volts)
+            odor_data_bits = odor_data['samples'].tolist()
+            odor_data_volts = odor_data['samples_volts'].tolist()
+            odor_data_bits = np.hstack(odor_data_bits)
+            odor_data_volts = np.hstack(odor_data_volts)
 
-        odor_data_bits = odor_data['samples'].tolist()
-        odor_data_volts = odor_data['samples_volts'].tolist()
-        odor_data_bits = np.hstack(odor_data_bits)
-        odor_data_volts = np.hstack(odor_data_volts)
+            end_bits = end_bits['samples'].tolist()
+            end_bits = np.hstack(end_bits)
 
-        end_bits = end_bits['samples'].tolist()
-        end_bits = np.hstack(end_bits)
+            trial_data['baseline_bits'].append(baseline_data_bits)
+            trial_data['odor_bits'].append(odor_data_bits)
 
-        trial_data['baseline_bits'].append(baseline_data_bits)
-        trial_data['odor_bits'].append(odor_data_bits)
+            trial_data['baseline_volts'].append(baseline_data_volts)
+            trial_data['odor_volts'].append(odor_data_volts)
 
-        trial_data['baseline_volts'].append(baseline_data_volts)
-        trial_data['odor_volts'].append(odor_data_volts)
-
-        trial_data['end_bits'].append(end_bits)
+            trial_data['end_bits'].append(end_bits)
+            trial_data['num_trials'] += 1
+        except Exception as e:
+            print(f'Error parsing trial {i}')
 
     trial_data = pd.DataFrame(trial_data)
 
@@ -170,7 +174,7 @@ def remove_double_sync_bytes(all_sync_bytes):
     # the PID sensor, so this is not a concern
 
     for i, each in enumerate(all_sync_bytes):
-        if each is int:
+        if isinstance(each, int):
             continue
         elif each.size == 1:
             all_sync_bytes[i] = each.item()

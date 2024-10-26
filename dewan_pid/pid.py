@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from tqdm import trange
-from Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
+from dewan_pid.Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
 
 
 plt.rcParams['figure.dpi'] = 600
@@ -21,7 +21,7 @@ def main():
     for file_container in file_paths: # Loop through selected file(s)
         try:
             process_file(file_container)
-        except e:
+        except Exception as e:
             print(e)
             continue
 
@@ -35,7 +35,7 @@ def process_file(file_container):
     fig, ax1 = plt.subplots()
 
     file_path, file_stem, output_folder = file_container
-    
+
     bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
 
     experiment_params = bpod_data['experiment']
@@ -73,7 +73,7 @@ def process_file(file_container):
         pre_trial_len = len(baseline_data_baseline_shift)
         trial_len = len(odor_data_baseline_shift)
         post_trial_time = len(end_data_baseline_shift)
-        
+
         x_values = np.arange(-pre_trial_len, (trial_len + post_trial_time))
 
         y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift))

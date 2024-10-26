@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 from tqdm import trange
-from dewan_pid.Utils import Dewan_PID_Utils_V2, Dewan_MAT_Parser
+from dewan_pid.utils import tools, mat_parser
 
 
 plt.rcParams['figure.dpi'] = 600
@@ -13,7 +13,7 @@ TOTAL_PREDURATION = 2 # The total time before a trial will almost always be 2s b
 def main():
 
     try:
-        file_paths = Dewan_PID_Utils_V2.get_file() # Get list of file(s)
+        file_paths = tools.get_file() # Get list of file(s)
     except FileNotFoundError as e:
         print(e)
         return
@@ -36,7 +36,7 @@ def process_file(file_container):
 
     file_path, file_stem, output_folder = file_container
 
-    bpod_data = Dewan_MAT_Parser.parse_mat(file_path)
+    bpod_data = mat_parser.parse_mat(file_path)
 
     experiment_params = bpod_data['experiment']
     experiment_type = experiment_params['session_type'][0]
@@ -111,7 +111,7 @@ def process_file(file_container):
     PID_Data = pd.DataFrame(PID_Data, columns=['PID Peak', 'PID Avg'])
     combined_data = settings.join(PID_Data)
 
-    Dewan_PID_Utils_V2.save_data(file_stem, output_folder, combined_data, fig)
+    tools.save_data(file_stem, output_folder, combined_data, fig)
 
 
 if __name__ == "__main__":

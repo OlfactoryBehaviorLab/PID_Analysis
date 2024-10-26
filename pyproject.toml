@@ -13,6 +13,7 @@ dependencies = [
 'matplotlib',
 'pandas',
 'tqdm',
+'openpyxl'
 ]
 
 [build-system]

@@ -1,0 +1,23 @@
+[project]
+name = "dewan_pid"
+version = "3.0"
+description = "Dewan Lab PID processing package"
+authors = [
+    {name="Austin Pauley", email="pauley@psy.fsu.edu"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+'numpy',
+'scipy',
+'matplotlib',
+'pandas',
+'tqdm',
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+#[tool.setuptools]
+#packages=['dewan_calcium']

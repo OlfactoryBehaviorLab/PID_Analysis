@@ -7,6 +7,10 @@ import numpy as np
 def parse_mat(path: pathlib.Path):
     mat_file = load_mat(path)
 
+    if not mat_file:
+        print(f'Error opening matfile {path}')
+        return None
+
     pid_data = {
         'settings': [],
         'bpod_info': [],
@@ -82,7 +86,6 @@ def parse_analog_data(session_data):
         'num_trials': 0
     }
     number_trials = len(FV_indices)
-
     for i in range(number_trials):
         try:
             start_index = baseline_indices[i]
@@ -119,9 +122,8 @@ def parse_analog_data(session_data):
             trial_data['odor_volts'].append(odor_data_volts)
 
             trial_data['end_bits'].append(end_bits)
-            trial_data['num_trials'] += 1
-        except Exception as e:
-            print(f'Error parsing trial {i}')
+        except Exception:
+            raise f'Error processing trial {i}'
 
     trial_data = pd.DataFrame(trial_data)
 
@@ -147,15 +149,23 @@ def get_sync_bytes(analog_data_swap):
     }
 
     all_sync_bytes = analog_data_swap['sync_indexes'].apply(lambda x: np.ravel(x))
-    all_sync_bytes = [0 if sync_byte.size < 1 else sync_byte for sync_byte in all_sync_bytes]
-    all_sync_bytes = remove_double_sync_bytes(all_sync_bytes)
-    all_sync_bytes = np.array(all_sync_bytes)
+    _all_sync_bytes = []
 
-    sync_bytes['baseline'] = np.where(all_sync_bytes == 67)  # B(aseline)
-    sync_bytes['start'] = np.where(all_sync_bytes == 83)  # S(tart)
-    sync_bytes['FV'] = np.where(all_sync_bytes == 70)  # F(inal Valve)
-    sync_bytes['end'] = np.where(all_sync_bytes == 69)  # E(nd)
-    sync_bytes['ITI'] = np.where(all_sync_bytes == 73)  # I(TI)
+    for sync_byte in all_sync_bytes:
+        if sync_byte.size < 1:
+            _all_sync_bytes.append(0)
+        else:
+            _all_sync_bytes.append(sync_byte)
+
+   # all_sync_bytes = [0 if sync_byte.size < 1 else sync_byte for sync_byte in all_sync_bytes]
+    _all_sync_bytes = remove_double_sync_bytes(_all_sync_bytes)
+    _all_sync_bytes = np.array(_all_sync_bytes)
+
+    sync_bytes['baseline'] = np.where(_all_sync_bytes == 67)  # B(aseline)
+    sync_bytes['start'] = np.where(_all_sync_bytes == 83)  # S(tart)
+    sync_bytes['FV'] = np.where(_all_sync_bytes == 70)  # F(inal Valve)
+    sync_bytes['end'] = np.where(_all_sync_bytes == 69)  # E(nd)
+    sync_bytes['ITI'] = np.where(_all_sync_bytes == 73)  # I(TI)
     lengths = [len(sync_bytes[each]) for each in sync_bytes.keys()]
     all_equal = np.array_equal(lengths, lengths)
 
@@ -193,15 +203,18 @@ def array_to_version_number(array):
 
 
 def load_mat(path: pathlib.Path) -> dict:
+    import traceback
     mat_file = []
     try:
         mat_file = sio.loadmat(str(path))
-    except FileNotFoundError as fnfe:
-        print(fnfe.strerror)
-        print(f'File at path {path} does not exist!')
+    except FileNotFoundError:
+        print(traceback.format_exc())
         return mat_file
-    except TypeError as te:
-        print(te.with_traceback)
+    except TypeError:
+        print(traceback.format_exc())
+        return mat_file
+    except Exception:
+        print(traceback.format_exc())
         return mat_file
 
     return mat_file

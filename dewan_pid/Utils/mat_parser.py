@@ -2,6 +2,7 @@ import pathlib
 import scipy.io as sio
 import pandas as pd
 import numpy as np
+import traceback
 
 
 def parse_mat(path: pathlib.Path):
@@ -93,6 +94,8 @@ def parse_analog_data(session_data):
             end_index = end_indices[i]
             iti_start_index = iti_indices[i]
 
+            print(f'{i}: {start_index - FV_index, end_index, iti_start_index}')
+
             if i == (number_trials - 1):
                 iti_end_index = -1
             else:
@@ -123,7 +126,8 @@ def parse_analog_data(session_data):
 
             trial_data['end_bits'].append(end_bits)
         except Exception:
-            raise f'Error processing trial {i}'
+            print(f'Error processing trial {i}')
+            # print(traceback.format_exc())
 
     trial_data = pd.DataFrame(trial_data)
 

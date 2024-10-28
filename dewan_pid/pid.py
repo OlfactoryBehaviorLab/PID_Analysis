@@ -8,28 +8,23 @@ from dewan_pid.utils import tools, mat_parser
 from pathlib import Path
 
 plt.rcParams['figure.dpi'] = 600
-CF_ITI = 2 # The Trial ITI should always be 2s for a CF
-TOTAL_PREDURATION = 2 # The total time before a trial will almost always be 2s before odor measurement
+CF_ITI = 2  # The Trial ITI should always be 2s for a CF
+TOTAL_PREDURATION = 2  # The total time before a trial will almost always be 2s before odor measurement
 
 
 def main():
 
-    # try:
-    #     file_paths = tools.get_file()  # Get list of file(s)
-    # except FileNotFoundError as e:
-    #     print(e)
-    #     return
-    # for file_container in file_paths:  # Loop through selected file(s)
-    #     try:
-    #         process_file(file_container)
-    #     except Exception as e:
-    #         print(traceback.format_exc())
-    #         continue
-    path = Path(r'R:\4_PID_CF\Bpod\CF\2-Hexanone_CF_Veronica_25-Oct-2024-13-36-24.mat')
-    file_stem = str(path.stem)
-    file_folder = str(path.parent)
-    file_path = str(path)
-    process_file((file_path, file_stem, file_folder))
+    try:
+        file_paths = tools.get_file()  # Get list of file(s)
+    except FileNotFoundError:
+        print(traceback.format_exc())
+        return
+    for file_container in file_paths:  # Loop through selected file(s)
+        try:
+            process_file(file_container)
+        except Exception:
+            print(traceback.format_exc())
+            continue
 
     print('Done processing!')
 
@@ -83,7 +78,6 @@ def process_file(file_container):
         post_trial_time = len(end_data_baseline_shift)
 
         x_values = np.arange(-pre_trial_len, (trial_len + post_trial_time))
-
         y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift))
         y_values = y_values / gain
         y_values = y_values / (carrier_flowrate / 900)

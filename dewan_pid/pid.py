@@ -1,10 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import traceback
 
 from tqdm import trange
 from dewan_pid.utils import tools, mat_parser
-
+from pathlib import Path
 
 plt.rcParams['figure.dpi'] = 600
 CF_ITI = 2 # The Trial ITI should always be 2s for a CF
@@ -13,14 +14,22 @@ TOTAL_PREDURATION = 2 # The total time before a trial will almost always be 2s b
 
 def main():
 
-    try:
-        file_paths = tools.get_file()  # Get list of file(s)
-    except FileNotFoundError as e:
-        print(e)
-        return
-
-    for file_container in file_paths:  # Loop through selected file(s)
-        process_file(file_container)
+    # try:
+    #     file_paths = tools.get_file()  # Get list of file(s)
+    # except FileNotFoundError as e:
+    #     print(e)
+    #     return
+    # for file_container in file_paths:  # Loop through selected file(s)
+    #     try:
+    #         process_file(file_container)
+    #     except Exception as e:
+    #         print(traceback.format_exc())
+    #         continue
+    path = Path(r'R:\4_PID_CF\Bpod\CF\2-Hexanone_CF_Veronica_25-Oct-2024-13-36-24.mat')
+    file_stem = str(path.stem)
+    file_folder = str(path.parent)
+    file_path = str(path)
+    process_file((file_path, file_stem, file_folder))
 
     print('Done processing!')
 
@@ -34,6 +43,9 @@ def process_file(file_container):
     file_path, file_stem, output_folder = file_container
 
     bpod_data = mat_parser.parse_mat(file_path)
+    if bpod_data is None:
+        print(f'Error parsing mat file {file_container[0]}')
+        return
 
     experiment_params = bpod_data['experiment']
     experiment_type = experiment_params['session_type'][0]
@@ -52,7 +64,7 @@ def process_file(file_container):
         gain = np.double(gain_str)
         carrier_flowrate = trial_settings['carrier_MFC']
 
-        trial_data = bpod_data['data'].iloc[i]
+        trial_data = bpod_data['data'][i]
 
         baseline_data = trial_data['baseline_bits']
         avg_baseline_data = np.mean(trial_data['baseline_bits'])

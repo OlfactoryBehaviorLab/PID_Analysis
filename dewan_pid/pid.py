@@ -43,6 +43,7 @@ def process_file(file_container):
     file_path, file_stem, output_folder = file_container
 
     bpod_data = mat_parser.parse_mat(file_path)
+
     if bpod_data is None:
         print(f'Error parsing mat file {file_container[0]}')
         return
@@ -51,11 +52,10 @@ def process_file(file_container):
     experiment_type = experiment_params['session_type'][0]
     odor_name = experiment_params['odor'][0]
     experimenter_name = experiment_params['name'][0]
-    num_trials = bpod_data['data']['num_trials'][0]
+    num_trials = len(bpod_data['data'])
     settings = bpod_data['settings']
 
     print(f'Processing {experiment_type} for {odor_name} run by {experimenter_name}...')
-
     for i in trange(num_trials):
 
         trial_settings = settings.iloc[i]
@@ -64,7 +64,7 @@ def process_file(file_container):
         gain = np.double(gain_str)
         carrier_flowrate = trial_settings['carrier_MFC']
 
-        trial_data = bpod_data['data'][i]
+        trial_data = bpod_data['data'].iloc[i]
 
         baseline_data = trial_data['baseline_bits']
         avg_baseline_data = np.mean(trial_data['baseline_bits'])

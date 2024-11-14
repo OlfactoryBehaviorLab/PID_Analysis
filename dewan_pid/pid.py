@@ -16,6 +16,7 @@ def main():
 
     try:
         file_paths = tools.get_file()  # Get list of file(s)
+        # TODO: parse the new file output
     except FileNotFoundError:
         print(traceback.format_exc())
         return

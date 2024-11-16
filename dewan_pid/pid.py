@@ -16,7 +16,6 @@ def main():
 
     try:
         file_paths = tools.get_file()  # Get list of file(s)
-        # TODO: parse the new file output
     except FileNotFoundError:
         print(traceback.format_exc())
         return
@@ -98,6 +97,7 @@ def process_file(file_container):
         y_values = y_values / (carrier_flowrate / 900)
         y_values = y_values * 4.8828 # TODO: Find new value for Bpod setup
 
+        y_vals.append(min(y_values))
         y_vals.append(max(y_values))
         x_vals.append(min(x_values))
         x_vals.append(max(x_values))
@@ -114,10 +114,21 @@ def process_file(file_container):
     x_tick_min = round(x_min, -3)
     x_tick_max = round(x_max, -3)
 
+    y_min = min(y_vals)
+    y_max = max(y_vals)
+    y_offset = abs(max(y_vals)) * 0.1
+    y_max += y_offset
+
+    if y_min == 0:
+        y_min = -y_offset
+    else:
+        y_min -= y_offset
+
+
     x_ticks = np.linspace(x_tick_min, x_tick_max, 7)
     ax1.set_xticks(x_ticks, labels = np.arange(-2, 5))
-    ax1.set_xlim([x_tick_min, x_tick_max * 1.05])
-    ax1.set_ylim([-300, (max(y_vals) * 1.05)])
+    ax1.set_xlim([x_tick_min, x_tick_max])
+    ax1.set_ylim([y_min , y_max])
 
     ax1.set_xlabel('Time since FV (s)')
     ax1.set_ylabel('Signal (Trial - Baseline)')

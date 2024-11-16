@@ -5,8 +5,18 @@ import numpy as np
 import traceback
 
 
-def parse_mat(path: pathlib.Path):
+def parse_mat(path: pathlib.Path, aIn_path: pathlib.Path):
+    mat_file = []
+    aIn_file = []
+
     mat_file = load_mat(path)
+
+    if aIn_path:
+        aIn_file = load_mat(aIn_path)
+
+        if not aIn_file:
+            print(f'Error opening aIn matfile {aIn_path}')
+            return None
 
     if not mat_file:
         print(f'Error opening matfile {path}')

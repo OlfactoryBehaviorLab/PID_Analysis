@@ -9,6 +9,8 @@ def parse_mat(path: pathlib.Path, aIn_path: pathlib.Path):
     mat_file = []
     aIn_file = []
 
+    print(f'Parsing {path.name}')
+
     mat_file = load_mat(path)
 
     if aIn_path:

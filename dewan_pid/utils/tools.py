@@ -20,7 +20,7 @@ def get_file(paths=None) -> list[dict]:
 
         path = Path(each)
         file_name = path.stem
-        
+
         if 'Alg' in str(path):
             print(f'Skipping {path}')
             continue
@@ -33,9 +33,9 @@ def get_file(paths=None) -> list[dict]:
         else:
             path_dict['aIn'] = None
 
-        path_dict['stem'] = str(path.stem)
-        path_dict['folder'] = str(path.parent)
-        path_dict['path'] = str(path)
+        path_dict['stem'] = path.stem
+        path_dict['folder'] = path.parent
+        path_dict['path'] = path
         # Get file stem to name output files; and file folder to save output files to
 
         return_paths.append(path_dict)

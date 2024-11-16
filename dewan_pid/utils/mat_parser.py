@@ -81,6 +81,18 @@ def parse_session_info(session_data) -> pd.DataFrame:
     return info
 
 
+def gather_trim_data(data, slices):
+    _data = []
+    for start, end in slices:
+        _slice = data[start:end]
+        _data.append(_slice)
+
+    min_length = min([len(row) for row in _data])
+    trimmed_data = [row[:min_length] for row in _data]
+
+    return trimmed_data
+
+
 def parse_aIn_analog_data(aIn_file):
     sync_bytes = aIn_file['SyncEvents']
     sync_indices = aIn_file['SyncEventTimes']
@@ -99,19 +111,8 @@ def parse_aIn_analog_data(aIn_file):
     baseline_data = []
     odor_data = []
 
-    for start, end in baseline_periods:
-        data = samples[start:end]
-        baseline_data.append(data)
-
-    min_length = min([len(row) for row in baseline_data])
-    trimmed_baseline_data = [row[:min_length] for row in baseline_data]
-
-    for start, end in odor_periods:
-        data = samples[start:end]
-        odor_data.append(data)
-
-    min_length = min([len(row) for row in odor_data])
-    trimmed_data = [row[:min_length] for row in odor_data]
+    trimmed_baseline_data = gather_trim_data(samples, baseline_periods)
+    trimmed_odor_data = gather_trim_data(samples, odor_periods)
 
     trial_data = {
         'baseline_volts': trimmed_baseline_data,

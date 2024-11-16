@@ -87,10 +87,13 @@ def process_file(file_container):
 
         pre_trial_len = len(baseline_data_baseline_shift)
         trial_len = len(odor_data_baseline_shift)
-        post_trial_time = len(end_data_baseline_shift)
+        post_trial_len = len(end_data_baseline_shift)
 
-        x_values = np.arange(-pre_trial_len, (trial_len + post_trial_time))
-        y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift))
+        if post_trial_len > pre_trial_len:
+            post_trial_len = pre_trial_len
+
+        x_values = np.arange(-pre_trial_len, (trial_len + post_trial_len))
+        y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift[:post_trial_len]))
         y_values = y_values / gain
         y_values = y_values / (carrier_flowrate / 900)
         y_values = y_values * 4.8828 # TODO: Find new value for Bpod setup

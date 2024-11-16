@@ -36,12 +36,14 @@ def process_file(file_container):
     x_vals = []
     fig, ax1 = plt.subplots()
 
-    file_path, file_stem, output_folder = file_container
-
-    bpod_data = mat_parser.parse_mat(file_path)
+    file_path = file_container['path']
+    file_stem = file_container['stem']
+    output_folder = file_container['folder']
+    aIn_path = file_container['aIn']
+    bpod_data = mat_parser.parse_mat(file_path, aIn_path)
 
     if bpod_data is None:
-        print(f'Error parsing mat file {file_container[0]}')
+        print(f'Error parsing mat file {file_path}')
         return
 
     experiment_params = bpod_data['experiment']

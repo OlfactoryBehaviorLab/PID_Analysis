@@ -20,6 +20,10 @@ def get_file(paths=None) -> list[dict]:
 
         path = Path(each)
         file_name = path.stem
+        
+        if 'Alg' in str(path):
+            print(f'Skipping {path}')
+            continue
 
         aIn_file_name = f'{file_name}_Alg'
         aIn_file_path = path.with_stem(aIn_file_name)

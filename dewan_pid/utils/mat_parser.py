@@ -1,9 +1,9 @@
 import pathlib
+import mat73
 import scipy.io as sio
 import pandas as pd
 import numpy as np
 import traceback
-
 
 def parse_mat(path: pathlib.Path, aIn_path: pathlib.Path):
     mat_file = []
@@ -217,10 +217,12 @@ def array_to_version_number(array):
 
 
 def load_mat(path: pathlib.Path) -> dict:
-    import traceback
+
     mat_file = []
     try:
         mat_file = sio.loadmat(str(path))
+    except NotImplementedError:
+        mat_file = mat73.loadmat(str(path))
     except FileNotFoundError:
         print(traceback.format_exc())
         return mat_file

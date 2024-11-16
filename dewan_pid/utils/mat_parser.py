@@ -33,7 +33,11 @@ def parse_mat(path: pathlib.Path, aIn_path: pathlib.Path):
     trial_settings = parse_settings(session_data)
     session_info = parse_session_info(session_data)
     experiment_info = parse_experiment_info(session_data)
-    trial_data = parse_analog_data(session_data)
+
+    if not aIn_file:
+        trial_data = parse_analog_data(session_data)
+    else:
+        trial_data = parse_aIn_analog_data(aIn_file)
 
     pid_data['settings'] = trial_settings
     pid_data['bpod_info'] = session_info
@@ -75,6 +79,48 @@ def parse_session_info(session_data) -> pd.DataFrame:
     info['CircuitRevision'] = circuit_rev
 
     return info
+
+
+def parse_aIn_analog_data(aIn_file):
+    sync_bytes = aIn_file['SyncEvents']
+    sync_indices = aIn_file['SyncEventTimes']
+    samples = aIn_file['Samples']
+
+    baseline_events = np.where(sync_bytes == 67)[0]
+    FV_events = np.where(sync_bytes == 70)[0]
+    end_events = np.where(sync_bytes == 69)[0]
+
+    baseline_indices = sync_indices[baseline_events].astype(int)
+    FV_indices = sync_indices[FV_events].astype(int)
+    end_indices = sync_indices[end_events].astype(int)
+
+    baseline_periods = tuple(zip(baseline_indices, FV_indices))
+    odor_periods = tuple(zip(FV_indices, end_indices))
+    baseline_data = []
+    odor_data = []
+
+    for start, end in baseline_periods:
+        data = samples[start:end]
+        baseline_data.append(data)
+
+    min_length = min([len(row) for row in baseline_data])
+    trimmed_baseline_data = [row[:min_length] for row in baseline_data]
+
+    for start, end in odor_periods:
+        data = samples[start:end]
+        odor_data.append(data)
+
+    min_length = min([len(row) for row in odor_data])
+    trimmed_data = [row[:min_length] for row in odor_data]
+
+    trial_data = {
+        'baseline_volts': trimmed_baseline_data,
+        'odor_volts': trimmed_data,
+    }
+
+    trial_data_df = pd.DataFrame(trial_data)
+
+    return trial_data_df
 
 
 def parse_analog_data(session_data):

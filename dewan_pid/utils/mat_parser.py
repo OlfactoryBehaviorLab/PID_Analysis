@@ -100,23 +100,32 @@ def parse_aIn_analog_data(aIn_file):
 
     baseline_events = np.where(sync_bytes == 67)[0]
     FV_events = np.where(sync_bytes == 70)[0]
-    end_events = np.where(sync_bytes == 69)[0]
+    ITI_events = np.where(sync_bytes == 73)[0]
 
     baseline_indices = sync_indices[baseline_events].astype(int)
     FV_indices = sync_indices[FV_events].astype(int)
-    end_indices = sync_indices[end_events].astype(int)
+    ITI_indices = sync_indices[ITI_events].astype(int)
 
-    baseline_periods = tuple(zip(baseline_indices, FV_indices))
-    odor_periods = tuple(zip(FV_indices, end_indices))
+    baseline_periods = list(zip(baseline_indices, FV_indices))
+    odor_periods = list(zip(FV_indices, ITI_indices))
+    end_periods = list(zip(ITI_indices[:-1], baseline_indices[1:]))
+    # Offset both lists by one so we can handle the last ITI index separate
+    final_end = tuple((ITI_indices[-1], len(samples)))
+    # The final trial will be the last ITI index to the end of the data
+    end_periods.append(final_end)
+
     baseline_data = []
     odor_data = []
+    end_data = []
 
     trimmed_baseline_data = gather_trim_data(samples, baseline_periods)
     trimmed_odor_data = gather_trim_data(samples, odor_periods)
+    trimmed_end_data = gather_trim_data(samples, end_periods)
 
     trial_data = {
         'baseline_volts': trimmed_baseline_data,
-        'odor_volts': trimmed_data,
+        'odor_volts': trimmed_odor_data,
+        'end_volts': trimmed_end_data
     }
 
     trial_data_df = pd.DataFrame(trial_data)

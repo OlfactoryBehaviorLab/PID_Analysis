@@ -34,6 +34,7 @@ def process_file(file_container):
     PID_Data = []
     y_vals = []
     x_vals = []
+    volts = False
     fig, ax1 = plt.subplots()
 
     file_path = file_container['path']
@@ -41,6 +42,9 @@ def process_file(file_container):
     output_folder = file_container['folder']
     aIn_path = file_container['aIn']
     bpod_data = mat_parser.parse_mat(file_path, aIn_path)
+
+    if aIn_path:
+        volts = True
 
     if bpod_data is None:
         print(f'Error parsing mat file {file_path}')
@@ -53,7 +57,7 @@ def process_file(file_container):
     num_trials = len(bpod_data['data'])
     settings = bpod_data['settings']
 
-    print(f'Processing {experiment_type} for {odor_name} run by {experimenter_name}...')
+    print(f'Processing {experiment_type} for {odor_name} run by {experimenter_name}\n')
     for i in trange(num_trials):
 
         trial_settings = settings.iloc[i]
@@ -63,11 +67,16 @@ def process_file(file_container):
         carrier_flowrate = trial_settings['carrier_MFC']
 
         trial_data = bpod_data['data'].iloc[i]
-
-        baseline_data = trial_data['baseline_bits']
-        avg_baseline_data = np.mean(trial_data['baseline_bits'])
-        odor_data = trial_data['odor_bits']
-        end_data = trial_data['end_bits']
+        if not volts:
+            baseline_data = trial_data['baseline_bits']
+            avg_baseline_data = np.mean(baseline_data)
+            odor_data = trial_data['odor_bits']
+            end_data = trial_data['end_bits']
+        else:
+            baseline_data = trial_data['baseline_volts']
+            avg_baseline_data = np.mean(baseline_data)
+            odor_data = trial_data['odor_volts']
+            end_data = trial_data['end_volts']
 
         baseline_data_baseline_shift = np.subtract(baseline_data, avg_baseline_data)  # Yes, mostly zeros
         odor_data_baseline_shift = np.subtract(odor_data, avg_baseline_data)

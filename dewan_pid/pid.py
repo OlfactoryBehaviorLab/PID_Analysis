@@ -95,7 +95,7 @@ def process_file(file_container):
         y_values = np.hstack((baseline_data_baseline_shift, odor_data_baseline_shift, end_data_baseline_shift[:post_trial_len]))
         y_values = y_values / gain
         y_values = y_values / (carrier_flowrate / 900)
-        y_values = y_values * 4.8828 # TODO: Find new value for Bpod setup
+        #y_values = y_values * 4.8828 # TODO: Find new value for Bpod setup
 
         y_vals.append(min(y_values))
         y_vals.append(max(y_values))

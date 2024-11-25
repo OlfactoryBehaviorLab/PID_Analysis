@@ -1,6 +1,6 @@
 [project]
-name = "dewan_pid"
-version = "3.0"
+name = "pid_analysis"
+version = "3.1"
 description = "Dewan Lab PID processing package"
 authors = [
     {name="Austin Pauley", email="pauley@psy.fsu.edu"},

@@ -4,7 +4,7 @@ import pandas as pd
 import traceback
 
 from tqdm import trange
-from dewan_pid.utils import tools, mat_parser
+from pid_analysis.utils import tools, mat_parser
 from pathlib import Path
 
 plt.rcParams['figure.dpi'] = 600

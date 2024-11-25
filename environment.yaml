@@ -1,0 +1,15 @@
+### Dewan Lab PID Analysis Environment
+### For users and development
+### Austin Pauley, Dewan Lab, Florida State University, 2024
+
+name: PID
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.12
+  - git
+  - pip
+  - pip:
+    - "git+https://github.com/OlfactoryBehaviorLab/PID_Analysis.git"
+

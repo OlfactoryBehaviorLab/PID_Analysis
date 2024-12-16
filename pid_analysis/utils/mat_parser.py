@@ -128,9 +128,9 @@ def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset = None):
             ITI_end_index = ITI_start_index + end_offset
 
             trial_dict = {
-                'baseline': [baseline_start_index, odor_start_index],
-                'odor': [odor_start_index, odor_end_index],
-                'end': [ITI_start_index, ITI_end_index]
+                'baseline': [baseline_start_index.astype(int), odor_start_index.astype(int)],
+                'odor': [odor_start_index.astype(int), odor_end_index.astype(int)],
+                'end': [ITI_start_index.astype(int), ITI_end_index.astype(int)]
             }
 
             sync_bytes_per_trial[str(trial_num)] = trial_dict
@@ -139,27 +139,29 @@ def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset = None):
 
 
 def parse_aIn_analog_data(aIn_file):
+    baseline_periods = []
+    odor_periods = []
+    end_periods = []
+
     sync_bytes = aIn_file['SyncEvents']
     sync_indices = aIn_file['SyncEventTimes']
     samples = aIn_file['Samples']
 
     sync_bytes_per_trial = get_trial_sync_bytes(sync_bytes, sync_indices)
 
-    baseline_events = np.where(sync_bytes == 67)[0]
-    FV_events = np.where(sync_bytes == 70)[0]
-    ITI_events = np.where(sync_bytes == 73)[0]
-
-    baseline_indices = sync_indices[baseline_events].astype(int)
-    FV_indices = sync_indices[FV_events].astype(int)
-    ITI_indices = sync_indices[ITI_events].astype(int)
-
-    baseline_periods = list(zip(baseline_indices, FV_indices))
-    odor_periods = list(zip(FV_indices, ITI_indices))
-    end_periods = list(zip(ITI_indices[:-1], baseline_indices[1:]))
+    # baseline_periods = list(zip(baseline_indices, FV_indices))
+    # odor_periods = list(zip(FV_indices, ITI_indices))
+    # end_periods = list(zip(ITI_indices[:-1], baseline_indices[1:]))
     # Offset both lists by one so we can handle the last ITI index separate
-    final_end = tuple((ITI_indices[-1], len(samples)))
+    # final_end = tuple((ITI_indices[-1], len(samples)))
     # The final trial will be the last ITI index to the end of the data
-    end_periods.append(final_end)
+    # end_periods.append(final_end)
+
+    for trial in sync_bytes_per_trial:
+        _trial_data = sync_bytes_per_trial[trial]
+        baseline_periods.append(_trial_data['baseline'])
+        odor_periods.append(_trial_data['odor'])
+        end_periods.append(_trial_data['end'])
 
     baseline_data = []
     odor_data = []

@@ -149,14 +149,6 @@ def parse_aIn_analog_data(aIn_file):
 
     sync_bytes_per_trial = get_trial_sync_bytes(sync_bytes, sync_indices)
 
-    # baseline_periods = list(zip(baseline_indices, FV_indices))
-    # odor_periods = list(zip(FV_indices, ITI_indices))
-    # end_periods = list(zip(ITI_indices[:-1], baseline_indices[1:]))
-    # Offset both lists by one so we can handle the last ITI index separate
-    # final_end = tuple((ITI_indices[-1], len(samples)))
-    # The final trial will be the last ITI index to the end of the data
-    # end_periods.append(final_end)
-
     for trial in sync_bytes_per_trial:
         _trial_data = sync_bytes_per_trial[trial]
         baseline_periods.append(_trial_data['baseline'])

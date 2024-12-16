@@ -5,6 +5,13 @@ import pandas as pd
 import numpy as np
 import traceback
 
+BASELINE_BYTE = 67
+ODOR_BYTE = 83
+FV_BYTE = 70
+KIN_BYTE = 75
+END_BYTE = 69
+ITI_BYTE = 73
+
 def parse_mat(path: pathlib.Path, aIn_path: pathlib.Path):
     mat_file = []
     aIn_file = []

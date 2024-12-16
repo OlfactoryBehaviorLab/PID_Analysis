@@ -102,7 +102,7 @@ def gather_trim_data(data, slices):
     return trimmed_data
 
 
-def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset: int = 2000):
+def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset = None):
     baseline_indices = np.where(sync_bytes == BASELINE_BYTE)[0] # Start of every trial
     ITI_events = np.where(sync_bytes == ITI_BYTE)[0]  # End of every trial
 
@@ -121,6 +121,10 @@ def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset: int = 2000):
             odor_start_index = _sync_indices[np.where(_trial_bytes == ODOR_BYTE)[0]][0]
             odor_end_index = _sync_indices[np.where(_trial_bytes == END_BYTE)[0]][0]
             ITI_start_index = _sync_indices[np.where(_trial_bytes == ITI_BYTE)[0]][0]
+
+            if not end_offset:  # If not supplied, the end offset will be the same length as the baseline
+                end_offset = odor_end_index - baseline_start_index
+
             ITI_end_index = ITI_start_index + end_offset
 
             trial_dict = {

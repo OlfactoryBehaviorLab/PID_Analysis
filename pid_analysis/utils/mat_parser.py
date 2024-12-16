@@ -102,30 +102,31 @@ def gather_trim_data(data, slices):
     return trimmed_data
 
 
-def get_trial_sync_bytes(sync_bytes, sync_indices, ITI_time):
+def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset: int = 2000):
     baseline_indices = np.where(sync_bytes == BASELINE_BYTE)[0] # Start of every trial
     ITI_events = np.where(sync_bytes == ITI_BYTE)[0]  # End of every trial
 
     sync_byte_bins = list(zip(baseline_indices, ITI_events))
     sync_bytes_per_trial = {}
 
-    for trial_num, (start_index, end_index) in enumerate(sync_byte_bins):
+    for trial_num, (start_index, end_index) in enumerate(sync_byte_bins):  # Loop through all trials
 
         _trial_bytes = sync_bytes[start_index:end_index+1]
         _sync_indices = sync_indices[start_index:end_index+1]
 
-        if KIN_BYTE in _trial_bytes:
+        if KIN_BYTE in _trial_bytes:  # We can skip all trials that are "subsampled"
             continue
         else:
-            baseline_start_index = sync_indices[start_index]
+            baseline_start_index = _sync_indices[np.where(_trial_bytes == BASELINE_BYTE)[0]][0]
             odor_start_index = _sync_indices[np.where(_trial_bytes == ODOR_BYTE)[0]][0]
             odor_end_index = _sync_indices[np.where(_trial_bytes == END_BYTE)[0]][0]
-            trial_end_index = _sync_indices[np.where(_trial_bytes == ITI_BYTE)[0]][0]
+            ITI_start_index = _sync_indices[np.where(_trial_bytes == ITI_BYTE)[0]][0]
+            ITI_end_index = ITI_start_index + end_offset
 
             trial_dict = {
                 'baseline': [baseline_start_index, odor_start_index],
                 'odor': [odor_start_index, odor_end_index],
-                'end': [odor_end_index, trial_end_index]
+                'end': [ITI_start_index, ITI_end_index]
             }
 
             sync_bytes_per_trial[str(trial_num)] = trial_dict

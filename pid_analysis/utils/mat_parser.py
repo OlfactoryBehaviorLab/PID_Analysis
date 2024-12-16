@@ -102,10 +102,43 @@ def gather_trim_data(data, slices):
     return trimmed_data
 
 
+def get_trial_sync_bytes(sync_bytes, sync_indices, ITI_time):
+    baseline_indices = np.where(sync_bytes == BASELINE_BYTE)[0] # Start of every trial
+    ITI_events = np.where(sync_bytes == ITI_BYTE)[0]  # End of every trial
+
+    sync_byte_bins = list(zip(baseline_indices, ITI_events))
+    sync_bytes_per_trial = {}
+
+    for trial_num, (start_index, end_index) in enumerate(sync_byte_bins):
+
+        _trial_bytes = sync_bytes[start_index:end_index+1]
+        _sync_indices = sync_indices[start_index:end_index+1]
+
+        if KIN_BYTE in _trial_bytes:
+            continue
+        else:
+            baseline_start_index = sync_indices[start_index]
+            odor_start_index = _sync_indices[np.where(_trial_bytes == ODOR_BYTE)[0]][0]
+            odor_end_index = _sync_indices[np.where(_trial_bytes == END_BYTE)[0]][0]
+            trial_end_index = _sync_indices[np.where(_trial_bytes == ITI_BYTE)[0]][0]
+
+            trial_dict = {
+                'baseline': [baseline_start_index, odor_start_index],
+                'odor': [odor_start_index, odor_end_index],
+                'end': [odor_end_index, trial_end_index]
+            }
+
+            sync_bytes_per_trial[str(trial_num)] = trial_dict
+
+    return sync_bytes_per_trial
+
+
 def parse_aIn_analog_data(aIn_file):
     sync_bytes = aIn_file['SyncEvents']
     sync_indices = aIn_file['SyncEventTimes']
     samples = aIn_file['Samples']
+
+    sync_bytes_per_trial = get_trial_sync_bytes(sync_bytes, sync_indices)
 
     baseline_events = np.where(sync_bytes == 67)[0]
     FV_events = np.where(sync_bytes == 70)[0]

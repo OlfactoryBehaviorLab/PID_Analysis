@@ -55,12 +55,8 @@ def save_data(file_name_stem, file_folder, data, fig):
         figure_folder.mkdir(parents=True)
 
     file_path = excel_folder.joinpath(f'{file_name_stem}.xlsx')
-    fig_path = figure_folder.joinpath(f'{file_name_stem}.png')
+    fig_path = figure_folder.joinpath(f'{file_name_stem}.pdf')
 
-    fig.savefig(fig_path, dpi=600)
+    fig.savefig(fig_path, transparent=True, dpi=600)
     data.to_excel(file_path, index=False)
 
-
-def save_figure(file_name_stem, file_folder, fig):
-    fig_path = Path(file_folder, 'Figures', f'{file_name_stem}.pdf')
-    fig.savefig(fig_path, transparent=True, dpi=300)

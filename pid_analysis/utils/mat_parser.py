@@ -147,6 +147,9 @@ def parse_aIn_analog_data(aIn_file):
     sync_indices = aIn_file['SyncEventTimes']
     samples = aIn_file['Samples']
 
+    if len(samples) > 1:  # If more than one channel is active, we just care about channel 1
+        samples = samples[0]
+
     sync_bytes_per_trial = get_trial_sync_bytes(sync_bytes, sync_indices)
 
     for trial in sync_bytes_per_trial:

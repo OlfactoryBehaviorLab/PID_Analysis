@@ -5,12 +5,16 @@ import pandas as pd
 import numpy as np
 import traceback
 
-BASELINE_BYTE = 67
-ODOR_BYTE = 83
-FV_BYTE = 70
-KIN_BYTE = 75
-END_BYTE = 69
-ITI_BYTE = 73
+import logging
+
+BASELINE_BYTE = 67 # C
+ODOR_BYTE = 83 # S
+FV_BYTE = 70 # F
+KIN_BYTE = 75 # K
+END_BYTE = 69 # E
+ITI_BYTE = 73 # I
+
+logger = logging.getLogger(__name__)
 
 def parse_mat(path: pathlib.Path, aIn_path: pathlib.Path):
     mat_file = []

@@ -161,10 +161,7 @@ def parse_aIn_analog_data(aIn_file):
         baseline_periods.append(_trial_data['baseline'])
         odor_periods.append(_trial_data['odor'])
         end_periods.append(_trial_data['end'])
-
-    baseline_data = []
-    odor_data = []
-    end_data = []
+        logger.info("Trial: %s | Baseline: %s, Odor: %s", trial, _trial_data['baseline'][1] - _trial_data['baseline'][0], _trial_data['odor'][1] - _trial_data['odor'][0])
 
     trimmed_baseline_data = gather_trim_data(samples, baseline_periods)
     trimmed_odor_data = gather_trim_data(samples, odor_periods)
@@ -208,7 +205,7 @@ def parse_analog_data(session_data):
             end_index = end_indices[i]
             iti_start_index = iti_indices[i]
 
-            print(f'{i}: {start_index - FV_index, end_index, iti_start_index}')
+            # print(f'Trial: {i} -- pretrial: {FV_index-start_index}, trial: {end_index-FV_index}')
 
             if i == (number_trials - 1):
                 iti_end_index = -1
@@ -320,21 +317,14 @@ def array_to_version_number(array):
     return array
 
 
-def load_mat(path: pathlib.Path) -> dict:
+def load_mat(path: pathlib.Path) -> dict | None:
 
-    mat_file = []
     try:
         mat_file = sio.loadmat(str(path))
     except NotImplementedError:
         mat_file = mat73.loadmat(str(path))
-    except FileNotFoundError:
+    except (FileNotFoundError, TypeError, Exception):
         print(traceback.format_exc())
-        return mat_file
-    except TypeError:
-        print(traceback.format_exc())
-        return mat_file
-    except Exception:
-        print(traceback.format_exc())
-        return mat_file
+        return None
 
     return mat_file

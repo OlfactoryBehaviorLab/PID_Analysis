@@ -122,7 +122,7 @@ def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset = None):
             continue
         else:
             baseline_start_index = _sync_indices[np.where(_trial_bytes == BASELINE_BYTE)[0]][0]
-            odor_start_index = _sync_indices[np.where(_trial_bytes == ODOR_BYTE)[0]][0]
+            odor_start_index = _sync_indices[np.where(_trial_bytes == FV_BYTE)[0]][0]
             odor_end_index = _sync_indices[np.where(_trial_bytes == END_BYTE)[0]][0]
             ITI_start_index = _sync_indices[np.where(_trial_bytes == ITI_BYTE)[0]][0]
 

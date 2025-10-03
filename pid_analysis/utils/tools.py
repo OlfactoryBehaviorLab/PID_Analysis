@@ -57,6 +57,11 @@ def save_data(file_name_stem, file_folder, data, fig):
     file_path = excel_folder.joinpath(f'{file_name_stem}.xlsx')
     fig_path = figure_folder.joinpath(f'{file_name_stem}.pdf')
 
-    fig.savefig(fig_path, transparent=True, dpi=600)
+    try:
+        fig.savefig(fig_path, transparent=True, dpi=600)
+    except PermissionError:
+        fig_path = figure_folder.joinpath(f'{file_name_stem}-1.pdf')
+        fig.savefig(fig_path, transparent=True, dpi=600)
+
     data.to_excel(file_path, index=False)
 

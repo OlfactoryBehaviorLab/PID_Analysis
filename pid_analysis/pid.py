@@ -2,18 +2,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import traceback
+import logging
 
 from tqdm import trange
 from pid_analysis.utils import tools, mat_parser
-from pathlib import Path
+
+plt.set_loglevel (level = 'warning')
 
 plt.rcParams['figure.dpi'] = 600
 CF_ITI = 2  # The Trial ITI should always be 2s for a CF
 TOTAL_PREDURATION = 2  # The total time before a trial will almost always be 2s before odor measurement
 
+logging.basicConfig(level=logging.ERROR)
+logger = logging.getLogger(__name__)
 
 def main():
-
     try:
         file_paths = tools.get_file()  # Get list of file(s)
     except FileNotFoundError:
@@ -87,6 +90,8 @@ def process_file(file_container):
         pre_trial_len = len(baseline_data_baseline_shift)
         trial_len = len(odor_data_baseline_shift)
         post_trial_len = len(end_data_baseline_shift)
+        # print(pre_trial_len, trial_len, post_trial_len)
+        # print(trial_settings)
 
         if post_trial_len > pre_trial_len:
             post_trial_len = pre_trial_len

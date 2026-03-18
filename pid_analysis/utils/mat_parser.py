@@ -7,12 +7,28 @@ import traceback
 
 import logging
 
+TRIAL_START_BYTE = 83 # S
+SOLVENT1_BYTE = 83 # S
 BASELINE_BYTE = 67 # C
-ODOR_BYTE = 83 # S
 FV_BYTE = 70 # F
 KIN_BYTE = 75 # K
 END_BYTE = 69 # E
 ITI_BYTE = 73 # I
+SOLVENT2_BYTE = 66 # B
+
+SOVLENT2_BYTE = 66
+# %   Analog1In event key:
+# %   1. S: Trial Start/Solvent_1 (Decimal 83)
+# %   2. F: FV Actuation (Odor Duration) (Decimal 70)
+# %   3. E: Trial End (Close everything) (Decimal 69)
+# %   4. P: Solvent odor pretrial duration (Decimal 80)
+# %   5. C: Baseline Start (Decimal 67)
+# %   6. I: ITI Start (Decimal 73)
+# %   7. K: Kinetic Trial No FV (Decimal 75)
+# %   8. B: Solvent 2/Post Odor (Decimal 66)
+
+# Solvent Trial: C, S, P, F, B, E, I
+# Baseline Start, Solvent 1, Odor pretrial duration, FV actuation, Solvent 2/Post Odor, All Off, ITI
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +123,7 @@ def gather_trim_data(data, slices):
 
 
 def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset = None):
+    is_solvent = False
     baseline_indices = np.where(sync_bytes == BASELINE_BYTE)[0] # Start of every trial
     ITI_events = np.where(sync_bytes == ITI_BYTE)[0]  # End of every trial
 
@@ -121,6 +138,7 @@ def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset = None):
         if KIN_BYTE in _trial_bytes:  # We can skip all trials that are "subsampled"
             continue
         else:
+
             baseline_start_index = _sync_indices[np.where(_trial_bytes == BASELINE_BYTE)[0]][0]
             odor_start_index = _sync_indices[np.where(_trial_bytes == FV_BYTE)[0]][0]
             odor_end_index = _sync_indices[np.where(_trial_bytes == END_BYTE)[0]][0]
@@ -131,21 +149,42 @@ def get_trial_sync_bytes(sync_bytes, sync_indices, end_offset = None):
 
             ITI_end_index = ITI_start_index + end_offset
 
-            trial_dict = {
-                'baseline': [baseline_start_index.astype(int), odor_start_index.astype(int)],
-                'odor': [odor_start_index.astype(int), odor_end_index.astype(int)],
-                'end': [ITI_start_index.astype(int), ITI_end_index.astype(int)]
-            }
+            solvent1_mask = np.where(_trial_bytes == SOLVENT1_BYTE)[0]
+            solvent2_mask = np.where(_trial_bytes == SOVLENT2_BYTE)[0]
+
+            if len(solvent2_mask) > 0:
+                # this is a solvent trial
+                solvent1_start_index = _sync_indices[solvent1_mask][0]
+                solvent2_start_index = _sync_indices[solvent2_mask] [0]
+
+                trial_dict = {
+                    'baseline': [baseline_start_index.astype(int), solvent1_start_index.astype(int)],
+                    'solv1': [solvent1_start_index.astype(int), odor_start_index.astype(int)],
+                    'odor': [odor_start_index.astype(int), solvent2_start_index.astype(int)],
+                    'solv2': [solvent2_start_index.astype(int), ITI_start_index.astype(int)],
+                    'end': [ITI_start_index.astype(int), ITI_end_index.astype(int)],
+                }
+
+                is_solvent = True
+            else:
+                trial_dict = {
+                    'baseline': [baseline_start_index.astype(int), odor_start_index.astype(int)],
+                    'odor': [odor_start_index.astype(int), odor_end_index.astype(int)],
+                    'end': [ITI_start_index.astype(int), ITI_end_index.astype(int)]
+                }
 
             sync_bytes_per_trial[str(trial_num)] = trial_dict
 
-    return sync_bytes_per_trial
+    return sync_bytes_per_trial, is_solvent
 
 
 def parse_aIn_analog_data(aIn_file):
     baseline_periods = []
     odor_periods = []
     end_periods = []
+
+    solvent1_periods = []
+    solvent2_periods = []
 
     sync_bytes = aIn_file['SyncEvents']
     sync_indices = aIn_file['SyncEventTimes']
@@ -154,14 +193,19 @@ def parse_aIn_analog_data(aIn_file):
     if len(samples.shape) > 1:  # If more than one channel is active, we just care about channel 1
         samples = samples[0]
 
-    sync_bytes_per_trial = get_trial_sync_bytes(sync_bytes, sync_indices)
+    sync_bytes_per_trial, is_solvent = get_trial_sync_bytes(sync_bytes, sync_indices)
 
     for trial in sync_bytes_per_trial:
         _trial_data = sync_bytes_per_trial[trial]
         baseline_periods.append(_trial_data['baseline'])
         odor_periods.append(_trial_data['odor'])
         end_periods.append(_trial_data['end'])
-        logger.info("Trial: %s | Baseline: %s, Odor: %s", trial, _trial_data['baseline'][1] - _trial_data['baseline'][0], _trial_data['odor'][1] - _trial_data['odor'][0])
+        if is_solvent:
+            solvent1_periods.append(_trial_data['solv1'])
+            solvent2_periods.append(_trial_data['solv2'])
+
+        # logger.info("Trial: %s | Baseline: %s, Odor: %s", trial, _trial_data['baseline'][1] - _trial_data['baseline'][0], _trial_data['odor'][1] - _trial_data['odor'][0])
+
 
     trimmed_baseline_data = gather_trim_data(samples, baseline_periods)
     trimmed_odor_data = gather_trim_data(samples, odor_periods)
@@ -172,6 +216,12 @@ def parse_aIn_analog_data(aIn_file):
         'odor_volts': trimmed_odor_data,
         'end_volts': trimmed_end_data
     }
+    if is_solvent:
+        trimmed_solvent1_data = gather_trim_data(samples, solvent1_periods)
+        trimmed_solvent2_data = gather_trim_data(samples, solvent2_periods)
+        trial_data['solvent1_volts'] = trimmed_solvent1_data
+        trial_data['solvent2_volts'] = trimmed_solvent2_data
+
 
     trial_data_df = pd.DataFrame(trial_data)
 

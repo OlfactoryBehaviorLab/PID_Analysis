@@ -8,13 +8,15 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-'numpy',
-'scipy',
-'matplotlib',
-'pandas',
-'tqdm',
-'openpyxl',
-'mat73'
+    'numpy',
+    'scipy',
+    'matplotlib',
+    'pandas',
+    'tqdm',
+    'openpyxl',
+    'mat73',
+    "scipy-stubs~=1.14.1",
+    "pandas-stubs~=2.2.3",
 ]
 
 [build-system]

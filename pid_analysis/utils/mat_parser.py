@@ -216,6 +216,7 @@ def parse_aIn_analog_data(aIn_file):
         'odor_volts': trimmed_odor_data,
         'end_volts': trimmed_end_data
     }
+
     if is_solvent:
         trimmed_solvent1_data = gather_trim_data(samples, solvent1_periods)
         trimmed_solvent2_data = gather_trim_data(samples, solvent2_periods)
